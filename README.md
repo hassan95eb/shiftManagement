@@ -45,6 +45,23 @@ TODO — formula, configurable weights, and a worked example (CLAUDE.md §5).
 
 TODO — link to [docs/01-erd-and-schema.md](docs/01-erd-and-schema.md).
 
+### Generated SQL scripts
+
+- `database/01-schema.sql` and `database/02-indexes.sql` are **generated** from
+  the EF Core migrations (`dotnet ef migrations script --idempotent
+  --no-transactions`, then split at the tables/indexes boundary). Do not
+  hand-edit them — regenerate after every migration. Only `database/03-seed.sql`
+  is written by hand. Run 01 and 02 in order, as a pair, with
+  `SET QUOTED_IDENTIFIER ON` (`sqlcmd -I`); 02 also stamps the
+  `__EFMigrationsHistory` row.
+- The `UNIQUE` constraints in the ERD (`UQ_Users_Username`,
+  `UQ_Projects_Employer_Name`, `UQ_ShiftApplications_Shift_Expert`, …) are
+  implemented as **named unique indexes**, not `ALTER TABLE … ADD CONSTRAINT …
+  UNIQUE`. This is EF Core's default; it is functionally equivalent and keeps
+  the names from the ERD.
+- `Shifts.RowVersion` is a real `rowversion` column. `sys.types` reports it
+  under the legacy synonym **`timestamp`** — same 8-byte type, nothing to fix.
+
 ## Testing
 
 TODO — how to run the tests and what is covered (CLAUDE.md §8).
