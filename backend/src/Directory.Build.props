@@ -7,11 +7,6 @@
 
   <PropertyGroup>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <!-- NU1903 is a transitive advisory on Microsoft.OpenApi, pulled in by the
-         template's Microsoft.AspNetCore.OpenApi reference. It stays a visible
-         warning (not a build breaker) until the OpenAPI stack is chosen in
-         Prompt 4. Delete this line as part of that decision. -->
-    <WarningsNotAsErrors>NU1903</WarningsNotAsErrors>
   </PropertyGroup>
 
 </Project>
