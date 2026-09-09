@@ -7,6 +7,14 @@
 -- (see backend/src/ShiftFlow.Infrastructure/Persistence/Migrations).
 -- Regenerate this file after every migration; never patch it directly.
 -- Source of truth for the shape below: docs/01-erd-and-schema.md.
+--
+-- Run 01-schema.sql and 02-indexes.sql in order, as a pair. This file depends
+-- on the tables created by 01-schema.sql, and it also inserts the
+-- __EFMigrationsHistory row that marks the InitialCreate migration as applied.
+--
+-- The session must have SET QUOTED_IDENTIFIER ON (with sqlcmd, pass -I). The
+-- filtered index below (UX_ShiftApplications_OneApproved) will not create
+-- without it.
 -- ---------------------------------------------------------------------------
 
 IF NOT EXISTS (
