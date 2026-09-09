@@ -1,0 +1,49 @@
+# ---------------------------------------------------------------------------
+# ShiftFlow .gitignore
+# See docs/02-repository-structure.md §7 for what must and must not be committed.
+# ---------------------------------------------------------------------------
+
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+[Rr]elease/
+[Dd]ebug/
+*.nupkg
+appsettings.Development.json
+
+# EF Core — migrations ARE committed (see docs/02 §7); this only ignores the
+# design-time bundle output.
+*.efbundle
+*.efbundle.exe
+
+# Node (frontend, added in its own phase)
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (recommender, added in its own phase)
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+.pytest_cache/
+
+# Secrets — real values live only in .env (ignored); the map lives in .env.example
+.env
+*.pfx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local working agreement — kept out of the published repository (CLAUDE.md §9).
+# Remove this line if the repository owner wants it tracked.
+CLAUDE.md

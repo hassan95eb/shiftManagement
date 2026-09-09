@@ -1,0 +1,35 @@
+# ---------------------------------------------------------------------------
+# ShiftFlow — Docker Compose
+#
+# Scaffold phase: only the `db` service exists. The `api`, `web` and one-shot
+# `recommender` services are added in later phases (CLAUDE.md §10 / docs/02 §6).
+# ---------------------------------------------------------------------------
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: shiftflow-db
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+      MSSQL_PID: Developer
+    ports:
+      - "${MSSQL_PORT:-1433}:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      # `depends_on` alone only waits for container start, not for SQL Server
+      # to accept connections (CLAUDE.md §11). Later services must use
+      # `depends_on: { db: { condition: service_healthy } }`.
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -b -Q \"SELECT 1\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  mssql-data:
