@@ -1,0 +1,15 @@
+<Project>
+
+  <!--
+    Settings shared by every project in the solution (four src projects and
+    the test project). Project-specific settings stay in the individual
+    .csproj files. TreatWarningsAsErrors is applied to the src projects only,
+    via src/Directory.Build.props.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

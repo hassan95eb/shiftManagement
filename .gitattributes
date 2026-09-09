@@ -1,0 +1,21 @@
+# Normalize every text file to LF in the repository so line endings stay
+# consistent across machines. Git still checks out per-platform where a
+# tool needs it, but the stored blob is always LF.
+* text=auto eol=lf
+
+# Binary files — never normalize, never diff as text.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.ico     binary
+*.pdf     binary
+*.zip     binary
+*.gz      binary
+*.7z      binary
+*.pfx     binary
+*.snk     binary
+*.dll     binary
+*.exe     binary
+*.woff    binary
+*.woff2   binary

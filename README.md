@@ -53,6 +53,12 @@ TODO — how to run the tests and what is covered (CLAUDE.md §8).
 
 TODO — every ambiguous point in the brief and the decision taken. Keep this running.
 
+- **OpenAPI advisory (NU1903).** The scaffold's `Microsoft.AspNetCore.OpenApi`
+  reference pulls a transitive `Microsoft.OpenApi 2.0.0` with a known advisory.
+  Left as a visible build warning for now (`TreatWarningsAsErrors` on the src
+  projects excludes `NU1903` via `WarningsNotAsErrors`). The fix is bundled with
+  choosing the OpenAPI/Swagger stack in Prompt 4; remove the exclusion then.
+
 ## At Scale
 
 TODO — what a production system would add (multi-timezone, more shift statuses,
