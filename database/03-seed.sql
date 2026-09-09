@@ -1,0 +1,17 @@
+-- ---------------------------------------------------------------------------
+-- ShiftFlow - seed data
+--
+-- HAND-WRITTEN FILE (unlike 01-schema.sql / 02-indexes.sql, which are
+-- generated from the EF Core migrations and must not be edited).
+--
+-- Placeholder only. The scenario-driven seed is authored in the final phase
+-- (CLAUDE.md §10 step 15): demo Users (one Employer, one Expert) with BCrypt
+-- hashes, a Project with the Expert assigned, a couple of open Shifts, and a
+-- few ExpertRatings rows (the ratings table is seed-only - CLAUDE.md §5).
+--
+-- Runs after 01-schema.sql and 02-indexes.sql. Keep every statement
+-- idempotent (guard inserts with NOT EXISTS / MERGE) so it can be re-applied
+-- against an existing database without error.
+-- ---------------------------------------------------------------------------
+
+-- (no rows yet)
