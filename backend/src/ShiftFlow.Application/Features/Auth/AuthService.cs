@@ -1,0 +1,54 @@
+using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
+using ShiftFlow.Application.Common;
+using ShiftFlow.Application.Features.Auth.Dtos;
+
+namespace ShiftFlow.Application.Features.Auth;
+
+/// <summary>
+/// The one use case of the auth phase: exchange a username and password for a
+/// signed access token. Only <c>Users</c> is read; the Employer / Expert row is
+/// pulled alongside so its id can go into the token claims.
+/// </summary>
+public sealed class AuthService
+{
+    private readonly IAppDbContext _db;
+    private readonly IPasswordHasher _passwordHasher;
+    private readonly IJwtTokenService _tokenService;
+
+    public AuthService(IAppDbContext db, IPasswordHasher passwordHasher, IJwtTokenService tokenService)
+    {
+        _db = db;
+        _passwordHasher = passwordHasher;
+        _tokenService = tokenService;
+    }
+
+    public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
+    {
+        var user = await _db.Users
+            .Include(u => u.Employer)
+            .Include(u => u.Expert)
+            .SingleOrDefaultAsync(u => u.Username == request.Username, cancellationToken);
+
+        if (user is null
+            || !user.IsActive
+            || !_passwordHasher.Verify(request.Password, user.PasswordHash))
+        {
+            throw new InvalidCredentialsException();
+        }
+
+        var employerId = user.Employer?.Id;
+        var expertId = user.Expert?.Id;
+
+        var token = _tokenService.CreateAccessToken(user, employerId, expertId);
+
+        return new LoginResponse(
+            token.Token,
+            token.ExpiresAtUtc,
+            "Bearer",
+            user.Id,
+            user.Role.ToString(),
+            employerId,
+            expertId);
+    }
+}
