@@ -129,14 +129,15 @@ public static class TestData
         this AppDbContext db,
         int shiftId,
         int expertId,
-        ApplicationStatus status)
+        ApplicationStatus status,
+        DateTime? appliedAtUtc = null)
     {
         var application = new ShiftApplication
         {
             ShiftId = shiftId,
             ExpertId = expertId,
             Status = status,
-            AppliedAtUtc = new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc),
+            AppliedAtUtc = appliedAtUtc ?? new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc),
         };
         db.ShiftApplications.Add(application);
         db.SaveChanges();

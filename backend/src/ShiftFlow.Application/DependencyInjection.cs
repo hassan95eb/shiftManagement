@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using ShiftFlow.Application.Features.Applications;
 using ShiftFlow.Application.Features.Auth;
 using ShiftFlow.Application.Features.Availabilities;
 using ShiftFlow.Application.Features.Experts;
@@ -22,6 +23,7 @@ public static class DependencyInjection
         services.AddScoped<AvailabilityService>();
         services.AddScoped<ShiftService>();
         services.AddScoped<OpenShiftService>();
+        services.AddScoped<ApplicationService>();
 
         return services;
     }
