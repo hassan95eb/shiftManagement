@@ -89,6 +89,12 @@ TODO — every ambiguous point in the brief and the decision taken. Keep this ru
   (`<=`). This is deliberately the opposite of the shift-overlap rule
   (CLAUDE.md §5 rule 5), which is half-open so back-to-back shifts do not
   conflict.
+- **`PUT /api/availability/{id}` may return a body whose `id` differs from the
+  path `id`.** A window whose bounds change as part of a merge is replaced, not
+  edited in place, so the merged window that now spans the requested interval
+  can be a different row. This is expected, not a bug. Clients must treat the
+  response body as the source of truth for the window's id and bounds and must
+  not keep using the id they sent in the path.
 - **Availability timestamps are truncated to whole seconds.** The storage
   column is `datetime2(0)`, so the request validator drops any sub-second part
   before the merge runs — the arithmetic uses the same precision the database
