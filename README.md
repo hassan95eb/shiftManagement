@@ -438,6 +438,13 @@ Every ambiguous point in the brief and the decision taken. Kept as a running lis
   raw-script setup path. It is development data — nine accounts sharing one
   password — and is documented as such; no password is written to the log.
   Production migrates and seeds (if at all) as a separate deploy step.
+- **The scoring formula is expressed in three independent places and nothing
+  enforces that they agree.** `SeedData.cs` (the stored `Score` / `Reason`), the
+  README worked example, and `python/scoring.py` each encode it separately. The
+  Python tests pin the seeded rows, so a change to the *formula* would break
+  them — but a change to the *seed* would surface nowhere. Binding a `Scoring`
+  section in the backend and deriving the seed's recommendation rows from it is
+  the open item that would collapse this to one source of truth.
 
 ## At Scale
 
