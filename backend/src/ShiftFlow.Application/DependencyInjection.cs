@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ShiftFlow.Application.Features.Auth;
+using ShiftFlow.Application.Features.Experts;
 using ShiftFlow.Application.Features.Projects;
 
 namespace ShiftFlow.Application;
@@ -14,6 +15,8 @@ public static class DependencyInjection
     {
         services.AddScoped<AuthService>();
         services.AddScoped<ProjectService>();
+        services.AddScoped<ExpertService>();
+        services.AddScoped<ExpertProjectService>();
 
         return services;
     }
