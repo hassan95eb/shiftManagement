@@ -10,6 +10,7 @@ namespace ShiftFlow.Api.Middleware;
 ///   <item><see cref="ValidationException"/> → 400</item>
 ///   <item><see cref="InvalidCredentialsException"/> → 401</item>
 ///   <item><see cref="ForbiddenAccessException"/> → 403</item>
+///   <item><see cref="NotFoundException"/> → 404</item>
 ///   <item><see cref="BusinessRuleViolationException"/> → 409</item>
 ///   <item>anything else → 500, with no detail leaked to the client</item>
 /// </list>
@@ -81,6 +82,12 @@ public sealed class ExceptionHandlingMiddleware
             Status = StatusCodes.Status403Forbidden,
             Error = "Forbidden",
             Message = forbidden.Message,
+        },
+        NotFoundException notFound => new ApiError
+        {
+            Status = StatusCodes.Status404NotFound,
+            Error = "NotFound",
+            Message = notFound.Message,
         },
         BusinessRuleViolationException businessRule => new ApiError
         {

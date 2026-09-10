@@ -64,6 +64,16 @@ public sealed class CurrentUser : ICurrentUser
 
     public int? ExpertId => ReadOptionalInt(ClaimNames.ExpertId);
 
+    public int RequireEmployerId() =>
+        EmployerId ?? throw new InvalidOperationException(
+            $"The authenticated principal has no '{ClaimNames.EmployerId}' claim; "
+            + "an Employer-scoped operation was reached without one.");
+
+    public int RequireExpertId() =>
+        ExpertId ?? throw new InvalidOperationException(
+            $"The authenticated principal has no '{ClaimNames.ExpertId}' claim; "
+            + "an Expert-scoped operation was reached without one.");
+
     private ClaimsPrincipal AuthenticatedPrincipal()
     {
         if (Principal is { Identity.IsAuthenticated: true } principal)
