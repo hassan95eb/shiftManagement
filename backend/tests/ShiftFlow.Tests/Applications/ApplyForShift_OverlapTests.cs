@@ -97,6 +97,30 @@ public class ApplyForShift_OverlapTests
     }
 
     [Fact]
+    public async Task An_approved_shift_on_another_project_still_blocks_an_overlapping_application()
+    {
+        using var ctx = new SqliteTestContext();
+        var employer = ctx.Db.AddEmployer("Acme");
+        var support = ctx.Db.AddProject(employer.Id, "Support");
+        var billing = ctx.Db.AddProject(employer.Id, "Billing");
+        var expert = ctx.Db.AddExpert("Jane Doe");
+        ctx.Db.Assign(expert.Id, support.Id);
+        ctx.Db.Assign(expert.Id, billing.Id);
+        ctx.Db.AddAvailability(expert.Id, At(0), At(23));
+
+        // Approved on Support for 10–14; the overlap check is not scoped to one
+        // project, so a clashing 12–16 shift on Billing is still rejected.
+        var approvedOnSupport = ctx.Db.AddShift(support.Id, At(10), At(14));
+        ctx.Db.AddApplication(approvedOnSupport.Id, expert.Id, ApplicationStatus.Approved);
+        var clashingOnBilling = ctx.Db.AddShift(billing.Id, At(12), At(16));
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
+            ServiceFor(ctx, expert.UserId, expert.Id).ApplyAsync(clashingOnBilling.Id, CancellationToken.None));
+
+        Assert.Equal(1, await ctx.NewContext().ShiftApplications.CountAsync());
+    }
+
+    [Fact]
     public async Task Only_Approved_shifts_block_a_new_application_not_Pending_ones()
     {
         using var ctx = new SqliteTestContext();
