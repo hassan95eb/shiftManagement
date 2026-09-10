@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using ShiftFlow.Domain.Entities;
 
 namespace ShiftFlow.Application.Abstractions;
@@ -32,4 +33,14 @@ public interface IAppDbContext
     DbSet<Recommendation> Recommendations { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// The change-tracking entry for <paramref name="entity"/>. Needed to set a
+    /// concurrency token's <c>OriginalValue</c> to the <c>RowVersion</c> the
+    /// client last read, so a stale write fails with
+    /// <see cref="DbUpdateConcurrencyException"/> rather than silently
+    /// overwriting a newer version (docs/01-erd-and-schema.md §3-7).
+    /// </summary>
+    EntityEntry<TEntity> Entry<TEntity>(TEntity entity)
+        where TEntity : class;
 }

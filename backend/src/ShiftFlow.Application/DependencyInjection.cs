@@ -3,6 +3,7 @@ using ShiftFlow.Application.Features.Auth;
 using ShiftFlow.Application.Features.Availabilities;
 using ShiftFlow.Application.Features.Experts;
 using ShiftFlow.Application.Features.Projects;
+using ShiftFlow.Application.Features.Shifts;
 
 namespace ShiftFlow.Application;
 
@@ -19,6 +20,8 @@ public static class DependencyInjection
         services.AddScoped<ExpertService>();
         services.AddScoped<ExpertProjectService>();
         services.AddScoped<AvailabilityService>();
+        services.AddScoped<ShiftService>();
+        services.AddScoped<OpenShiftService>();
 
         return services;
     }

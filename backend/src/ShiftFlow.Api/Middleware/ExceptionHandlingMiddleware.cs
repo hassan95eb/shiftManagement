@@ -12,6 +12,7 @@ namespace ShiftFlow.Api.Middleware;
 ///   <item><see cref="ForbiddenAccessException"/> → 403</item>
 ///   <item><see cref="NotFoundException"/> → 404</item>
 ///   <item><see cref="BusinessRuleViolationException"/> → 409</item>
+///   <item><see cref="ConcurrencyConflictException"/> → 409</item>
 ///   <item>anything else → 500, with no detail leaked to the client</item>
 /// </list>
 /// </summary>
@@ -94,6 +95,12 @@ public sealed class ExceptionHandlingMiddleware
             Status = StatusCodes.Status409Conflict,
             Error = "BusinessRuleViolation",
             Message = businessRule.Message,
+        },
+        ConcurrencyConflictException concurrency => new ApiError
+        {
+            Status = StatusCodes.Status409Conflict,
+            Error = "ConcurrencyConflict",
+            Message = concurrency.Message,
         },
         _ => new ApiError
         {
