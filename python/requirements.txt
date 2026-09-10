@@ -1,0 +1,6 @@
+# Recommender -- Python dependencies.
+#
+# scoring.py and config.py use only the standard library. Only the tests need a
+# third-party package. pymssql (database access) is added in the recommender
+# build phase (CLAUDE.md #10 step 13), not here.
+pytest>=8.2,<9
