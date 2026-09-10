@@ -6,6 +6,14 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.11" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.11" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.11" />
+
+    <!-- Identity: password hashing and JWT issuance live in this layer
+         (docs/02-repository-structure.md §3, Infrastructure/Identity). The
+         version of System.IdentityModel.Tokens.Jwt matches the transitive
+         Microsoft.IdentityModel.* that Api's JwtBearer 10.0.11 resolves. -->
+    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
   </ItemGroup>
 
   <ItemGroup>

@@ -4,7 +4,13 @@
        backend/src/Directory.Build.props. -->
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.9" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.11" />
+
+    <!-- Swagger UI with a working Authorize button. Swashbuckle 10.x depends on
+         Microsoft.OpenApi 2.7.5, which carries the fix for GHSA-v5pm-xwqc-g5wc
+         (NU1903) — the reason the template's Microsoft.AspNetCore.OpenApi
+         reference (transitive Microsoft.OpenApi 2.0.0) was dropped here. -->
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="10.2.3" />
 
     <!-- Design-time only: this is the EF Core startup project, so `dotnet ef`
          loads its migration tooling from here. Not shipped at runtime. The
