@@ -13,6 +13,11 @@
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
 
+    <!-- Relational SQLite for the use-case tests: unlike EF Core InMemory it
+         honours unique and CHECK constraints, which several of these tests are
+         specifically about (CLAUDE.md §8). -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.11" />
+
     <!-- Decode issued JWTs in the token tests. Version tracks the transitive
          Microsoft.IdentityModel.* that Api's JwtBearer 10.0.11 resolves. -->
     <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.2" />
