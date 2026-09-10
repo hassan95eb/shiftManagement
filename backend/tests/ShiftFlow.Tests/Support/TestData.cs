@@ -71,14 +71,22 @@ public static class TestData
             new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc),
             new DateTime(2026, 7, 1, 16, 0, 0, DateTimeKind.Utc));
 
-    public static Shift AddShift(this AppDbContext db, int projectId, DateTime startUtc, DateTime endUtc)
+    public static Shift AddShift(this AppDbContext db, int projectId, DateTime startUtc, DateTime endUtc) =>
+        db.AddShift(projectId, startUtc, endUtc, ShiftStatus.Open);
+
+    public static Shift AddShift(
+        this AppDbContext db,
+        int projectId,
+        DateTime startUtc,
+        DateTime endUtc,
+        ShiftStatus status)
     {
         var shift = new Shift
         {
             ProjectId = projectId,
             StartUtc = startUtc,
             EndUtc = endUtc,
-            Status = ShiftStatus.Open,
+            Status = status,
             CreatedAtUtc = Seeded,
         };
         db.Shifts.Add(shift);
