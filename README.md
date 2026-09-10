@@ -1,63 +1,284 @@
 # ShiftFlow
 
-> Skeleton README. Section order follows docs/02-repository-structure.md §11.
-> Each `TODO` is filled in during the build phase that produces the relevant code.
+A call-center shift-management panel. Hourly specialists (**Experts**) declare when
+they are available and apply for open shifts; an **Employer** manages projects, opens
+shifts, and approves or rejects applications. One expert is approved per shift, inside a
+single transaction that also rejects the other applicants. A standalone Python script
+(built in a later phase) ranks each shift's applicants and writes a score and a
+human-readable reason back to the database.
 
-## Overview
-
-TODO — one paragraph describing the call center shift management panel, plus a screenshot.
+This repository is the **backend**: an ASP.NET Core API, EF Core persistence against
+SQL Server, and an xUnit suite. The React frontend, the Python recommender, and the full
+`docker compose` topology land in their own phases (see `CLAUDE.md` §10).
 
 ## Architecture
 
-TODO — layer diagram (`Api → Application → Domain ← Infrastructure`) and the reasoning
-behind it. See CLAUDE.md §4.
+```
+Api  →  Application  →  Domain  ←  Infrastructure
+```
+
+| Layer | Holds | Depends on |
+|---|---|---|
+| **Domain** | Entities, enums, domain exceptions. No EF Core, no ASP.NET. | nothing |
+| **Application** | Use-case services, DTOs, validators, the five business rules, the approval transaction. Talks to the database through `IAppDbContext`. | Domain |
+| **Infrastructure** | `AppDbContext` + one EF configuration per entity, migrations, JWT issuance, BCrypt hashing, the system clock, the scenario seed. | Domain, Application |
+| **Api** | Controllers (HTTP shape only — no business logic), the uniform error middleware, DI wiring, Swagger. | Application, Infrastructure |
+
+Deliberate choices:
+
+- **No repository classes.** Services compose LINQ directly against `IAppDbContext`, implemented by `AppDbContext`.
+- **No `DateTime.UtcNow` in logic.** Time is injected via `IClock`, so month-boundary logic is deterministic in tests. Everything is UTC; every timestamp column ends in `Utc`.
+- **Ownership is enforced at the resource level, not just by role.** A correct role with the wrong resource id gets `404`, so ids cannot be probed (see [Business Rules](#business-rules)).
+- **One error shape.** Every failure — thrown domain/application exception or model-binding error — is returned as the same `ApiError` JSON object.
 
 ## Tech Stack
 
-TODO — table of choices (ASP.NET Core + EF Core, SQL Server, React + TypeScript + Vite +
-TanStack Query, JWT, Python + pymssql, Docker Compose, xUnit + SQLite in-memory, Swagger).
+| Concern | Choice |
+|---|---|
+| API | ASP.NET Core (.NET 10) + EF Core |
+| Database | SQL Server 2022, in Docker |
+| Auth | JWT access token (HS256), **no refresh token** |
+| Recommendation | standalone Python + `pymssql` *(later phase)* |
+| Frontend | React + TypeScript + Vite + TanStack Query *(later phase)* |
+| Tests | xUnit + SQLite in-memory |
+| API docs | Swagger / Swashbuckle |
+| Infra | Docker Compose with a healthcheck on the DB |
 
 ## Quick Start (Docker)
 
-TODO — three commands, no more.
+Only the **database** service exists in `docker-compose.yml` today; the `api`, `web`, and
+one-shot `recommender` services are added in the Docker phase (`CLAUDE.md` §10 step 14).
+Until then:
+
+```bash
+cp .env.example .env          # then edit MSSQL_SA_PASSWORD to a strong value
+docker compose up -d db       # SQL Server, with a healthcheck
+```
+
+Then run the API from source as in [Manual Setup](#manual-setup). In `Development` the API
+applies migrations and inserts the [scenario seed](#seed-scenario-map) on startup, so the
+database is ready the first time it boots.
 
 ## Manual Setup
 
-TODO — how to run without Docker.
+Running without Docker needs the .NET 10 SDK and a reachable SQL Server.
+
+### Required configuration
+
+`appsettings.json` ships only non-secret defaults (`Jwt` issuer/audience/lifetime) and
+**empty** placeholders for the two secrets. `dotnet run` fails on startup if either is
+missing, and the errors are not self-explanatory:
+
+- an empty `ConnectionStrings:Default` surfaces later as a connection failure on the first request;
+- an empty or short `Jwt:Key` fails fast in `IValidateOptions` — the key must be **at least 32 bytes**.
+
+| Variable | Required | Notes |
+|---|---|---|
+| `ConnectionStrings__Default` | **yes** | e.g. `Server=localhost,1433;Database=ShiftFlow;User Id=sa;Password=Your_Strong_Passw0rd!;TrustServerCertificate=True` |
+| `Jwt__Key` | **yes** | signing key, ≥ 32 bytes; generate with `openssl rand -base64 48` |
+| `Jwt__Issuer` | no | defaults to `shiftflow` |
+| `Jwt__Audience` | no | defaults to `shiftflow` |
+| `Jwt__AccessTokenLifetimeMinutes` | no | defaults to `60` |
+| `AutoMigrate` | no | `true` runs migrate + seed outside `Development`; leave unset in production |
+| `ASPNETCORE_ENVIRONMENT` | no | `Development` (the default in `launchSettings.json`) enables Swagger and migrate + seed |
+
+The `__` (double underscore) form is for environment variables; the `:` form below is for
+`appsettings` / user-secrets.
+
+### Recommended: user-secrets
+
+Keep the secrets out of the repo and out of your shell history:
+
+```bash
+cd backend/src/ShiftFlow.Api
+dotnet user-secrets init
+dotnet user-secrets set "ConnectionStrings:Default" "Server=localhost,1433;Database=ShiftFlow;User Id=sa;Password=Your_Strong_Passw0rd!;TrustServerCertificate=True"
+dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
+dotnet run
+```
+
+The API listens on `http://localhost:5023` (and `https://localhost:7194`); Swagger UI is at
+`/swagger`.
+
+### Database schema
+
+In `Development` (or with `AutoMigrate=true`) the API runs `Database.MigrateAsync()` and the
+scenario seed itself, so there is nothing else to do. To build the schema by hand instead —
+or to seed a database the API will not migrate — run, in order:
+
+```bash
+sqlcmd -I -S localhost -U sa -P "<pw>" -d ShiftFlow -i database/01-schema.sql
+sqlcmd -I -S localhost -U sa -P "<pw>" -d ShiftFlow -i database/02-indexes.sql
+sqlcmd -I -S localhost -U sa -P "<pw>" -d ShiftFlow -i database/03-seed.sql
+```
+
+> **Production** does **not** migrate or seed from the API process. It runs
+> `dotnet ef database update` (or the reviewed `database/*.sql` pair) as a separate deploy
+> step, with `AutoMigrate` unset, so a real database is never touched by app startup and
+> the scenario seed never reaches it.
 
 ## Demo Accounts
 
-> **Development only.** These accounts are created by the startup development
-> seed, which runs in the `Development` environment or when `AutoMigrate` is set.
-> They must never exist in a real deployment. The full phase-10 seed replaces
-> this.
+> **Development data only.** These accounts come from the scenario seed, which runs in the
+> `Development` environment or when `AutoMigrate` is set. They must never exist in a real
+> deployment.
 
-| Role | Username | Password |
+Every account's password is `Demo!Pass1`.
+
+| Role | Username | In the scenario |
 |---|---|---|
-| Employer | `demo-employer` | `Demo!Pass1` |
-| Expert | `demo-expert` | `Demo!Pass1` |
+| Employer | `employer` | owns **Retail Support** and **Billing Support**, decides applications |
+| Employer | `rival` | owns a separate project — use it to confirm the ownership boundary (`404`, not `403`) |
+| Expert | `ada` | applies to the pool shift; already approved for another shift (drives apply rule 5) |
+| Expert | `grace` | availability ends before the pool shift (apply rule 3 — fail) |
+| Expert | `lin` | availability covers the pool shift exactly (apply rules 3 & 4) |
+| Expert | `omar` | no availability on the pool day; already approved on the closed shift |
+| Expert | `nate` | clean pool applicant, has a recommendation row |
+| Expert | `kite` | clean pool applicant; no rating row, so scores the `3.0` default |
+| Expert | `rosa` | assigned to no Northwind project (apply rule 2 — fail) |
 
-The same seed also creates one project (`Demo Project`) owned by the employer
-with the expert assigned to it, one open shift starting tomorrow at 09:00 UTC,
-and an availability window on the expert that fully covers that shift — enough to
-walk login and the apply flow through Swagger. Running the API again does not
-duplicate any of it. The two usernames are logged to the console on startup.
+See the [seed scenario map](#seed-scenario-map) for exactly which rows demonstrate which
+rule.
 
 ## API Documentation
 
-TODO — link to Swagger UI and a table of endpoints.
+Swagger UI at `/swagger` in `Development`. All routes are under `/api`. Every endpoint
+except `login` requires `Authorization: Bearer <token>`; the token's role must match.
+
+| Method & path | Role | Purpose |
+|---|---|---|
+| `POST /api/auth/login` | anonymous | exchange username + password for a JWT |
+| `GET /api/projects` | Employer | list your projects |
+| `POST /api/projects` | Employer | create a project |
+| `GET /api/projects/{id}` | Employer | one project |
+| `PUT /api/projects/{id}` | Employer | rename / toggle a project |
+| `DELETE /api/projects/{id}` | Employer | delete a project (cascades to shifts) |
+| `GET /api/projects/{id}/experts` | Employer | experts assigned to a project |
+| `POST /api/experts` | Employer | register an expert (with an initial password) |
+| `GET /api/experts` | Employer | list experts |
+| `GET /api/experts/{id}` | Employer | one expert |
+| `POST /api/experts/{id}/projects/{projectId}` | Employer | assign an expert to a project |
+| `DELETE /api/experts/{id}/projects/{projectId}` | Employer | unassign (rejects the expert's pending applications on that project) |
+| `GET /api/experts/{id}/projects` | Employer | an expert's project assignments |
+| `POST /api/availability` | Expert | add an availability window (overlapping / adjacent windows are merged on insert) |
+| `GET /api/availability` | Expert | your windows |
+| `GET /api/availability/{id}` | Expert | one window |
+| `PUT /api/availability/{id}` | Expert | resize a window (may merge; the response body is the source of truth for the id) |
+| `DELETE /api/availability/{id}` | Expert | delete a window (blocked if it covers an approved shift) |
+| `POST /api/shifts` | Employer | open a shift on one of your projects |
+| `GET /api/shifts` | Employer | your shifts, filterable by project / status / date |
+| `GET /api/shifts/{id}` | Employer | one shift |
+| `PUT /api/shifts/{id}` | Employer | correct a shift's window (only while Open and unapplied; optimistic-concurrency `409`) |
+| `GET /api/shifts/open` | Expert | open shifts on your assigned projects |
+| `GET /api/shifts/open/{id}` | Expert | one open shift you can apply to |
+| `POST /api/shifts/{shiftId}/applications` | Expert | apply to a shift (the five rules below) |
+| `GET /api/applications` | Employer or Expert | application history, scoped to the caller, filterable by shift / status |
+| `POST /api/applications/{applicationId}/approval` | Employer | approve — closes the shift, rejects the siblings, all in one transaction |
+| `POST /api/applications/{applicationId}/rejection` | Employer | reject this one application; the shift stays Open |
+| `GET /api/shifts/{shiftId}/recommendations` | Employer | the applicant ranking the Python script wrote |
+
+### Error shape
+
+```json
+{ "status": 409, "error": "BusinessRuleViolation", "message": "…", "details": { } }
+```
+
+`details` is present only for `400` validation errors.
+
+| Status | `error` | When |
+|---|---|---|
+| 400 | `ValidationFailed` | malformed body / failed validator (`details` lists the fields) |
+| 401 | `InvalidCredentials` | bad login, or a missing / invalid token |
+| 403 | `Forbidden` | authenticated but the wrong role for the route |
+| 404 | `NotFound` | unknown id **or** a resource owned by someone else |
+| 409 | `BusinessRuleViolation` | an apply rule or an approval precondition failed |
+| 409 | `ConcurrencyConflict` | a stale `RowVersion` on a shift edit / approval |
+| 500 | `InternalServerError` | unexpected; no detail leaked |
 
 ## Business Rules
 
-TODO — the five apply-to-shift rules with examples (CLAUDE.md §5).
+### Applying to a shift — `POST /api/shifts/{shiftId}/applications`
+
+All five are enforced in `ApplicationService`, in this order (cheapest first after the
+membership gate). The database constraints (`UQ_ShiftApplications_Shift_Expert`, the
+filtered one-approved index) are a race backstop, not the primary check.
+
+| # | Rule | Failure | Example (scenario seed) |
+|---|---|---|---|
+| 2 | The expert is assigned to the shift's project | `404` — indistinguishable from an unknown id, so membership can't be probed | `rosa` (Overflow Desk only) → any Retail shift |
+| 1 | The shift's status is `Open` | `409` "no longer open for applications" | any Retail expert → the 2026-11-11 **Closed** shift |
+| 4 | No existing application by this expert for this shift (any status) | `409` "already applied to this shift" | `lin` applies to the pool shift twice |
+| 3 | One availability window covers the **whole** shift | `409` "does not cover the whole of this shift" | `grace` (06:00–14:00) or `omar` (no window) → the 08:00–16:00 pool shift |
+| 5 | No overlap with a shift the expert is already **approved** for — half-open: `existing.Start < new.End AND existing.End > new.Start`, so back-to-back shifts (10–14, 14–18) are fine | `409` "overlaps another shift you are already approved for" | `ada` (approved 2026-11-12 09:00–17:00) → the overlapping 08:00–16:00 shift that day |
+
+Rule 3 is a single-window containment test, not gap-stitching: because adjacent windows are
+merged on write, a shift spanning what used to be two touching windows is covered by the one
+merged window. Two windows with a real gap still fail.
+
+### Approving an application — `POST /api/applications/{id}/approval`
+
+One expert per shift. Inside **one transaction**:
+
+1. verify the employer owns the shift's project (else `404`);
+2. verify the shift is still `Open` (else `409`);
+3. verify the application is still `Pending` (else `409`);
+4. **re-check apply rule 5** against current state — the expert may have been approved for a clashing shift since applying;
+5. application → `Approved`, recording `DecidedByUserId` / `DecidedAtUtc`;
+6. shift → `Closed`;
+7. every other `Pending` application on that shift → `Rejected`, with `DecisionNote = "Shift filled by another expert."`
+
+If the final write fails (e.g. the filtered unique index catches a race, or the shift's
+`RowVersion` moved), the whole thing rolls back: the shift stays `Open` and no sibling is
+rejected.
+
+**Rejecting** (`.../rejection`) touches only that one application; the shift stays `Open` for
+the rest. Cancelling an approval is out of scope, and a decided application cannot be
+decided again.
 
 ## Scoring Formula
 
-TODO — formula, configurable weights, and a worked example (CLAUDE.md §5).
+Computed by the Python recommender (later phase); any C# mirror must match exactly. Weights
+and `MonthlyCap` come from configuration, never hard-coded.
+
+```
+RatingScore       = (previous-month rating ?? 3.0) / 5
+WorkloadScore     = 1 - min(ApprovedHours / MonthlyCap, 1)          # MonthlyCap = 160
+AvailabilityScore = shift duration / covering availability window duration
+
+FinalScore = (0.30 * RatingScore + 0.30 * WorkloadScore + 0.40 * AvailabilityScore) * 100
+```
+
+- "Previous month" and `ApprovedHours` are relative to the month of **`Shift.StartUtc`**, not today.
+- An expert with no rating row scores `3.0`.
+- Ranking is over the **applicants of one shift**. Tie-break: fewer approved hours first, then earlier `AppliedAtUtc`.
+- `Reason` is traceable to the three weighted components.
+
+### Worked example — `ada` on the pool shift (scenario seed)
+
+The pool shift is 2026-11-10 **08:00–16:00** (8 h). `ada`:
+
+| Component | Inputs | Score | Weighted (× 100) |
+|---|---|---|---|
+| Rating | 2026-10 rating = **4.6** → 4.6 / 5 | 0.92 | 0.30 × 0.92 × 100 = **27.6** |
+| Workload | approved in 2026-11 = one 8 h shift → 1 − 8/160 | 0.95 | 0.30 × 0.95 × 100 = **28.5** |
+| Availability | 8 h shift inside a 16 h window (06:00–22:00) → 8 / 16 | 0.50 | 0.40 × 0.50 × 100 = **20.0** |
+| **Total** | | | **76.1** |
+
+`Reason: Rating 4.6/5 -> 27.6 | Workload 8h -> 28.5 | Availability 8/16h -> 20.0 | Total 76.1`
+
+Seeded ranking for that shift: `ada` 76.1 → `nate` 71.5 → `kite` 70.9 (`kite` has no rating
+row, so 3.0 / 5).
 
 ## Database Design
 
-TODO — link to [docs/01-erd-and-schema.md](docs/01-erd-and-schema.md).
+Full ERD, every column, constraint, index, and delete rule: [docs/01-erd-and-schema.md](docs/01-erd-and-schema.md).
+
+Shape highlights: `INT IDENTITY` keys; `DATETIME2(0)` UTC timestamps; enums as `NVARCHAR`
++ `CHECK`, mapped `HasConversion<string>()`; `DECIMAL` for scores; `RowVersion` on `Shifts`
+for optimistic concurrency; a filtered `UNIQUE INDEX UX_ShiftApplications_OneApproved` as
+the last-ditch guard against two approvals racing. The Employer → Project → Shift path
+cascades on delete; every FK from the Expert side is `NO ACTION` (SQL Server rejects two
+cascade paths into one table).
 
 ### Generated SQL scripts
 
@@ -89,13 +310,55 @@ happens. The multi-column employer list (`SELECT *`-style, filtered by
 scale; adding `INCLUDE` columns to make it index-served was considered and
 rejected — a schema change not justified for this data volume.
 
+### Seed scenario map
+
+`ShiftFlow.Infrastructure.Persistence.SeedData` (run on startup in `Development` /
+`AutoMigrate`) and `database/03-seed.sql` (for the raw-script path) insert the **same
+logical rows**. Neither runs the other. The data is one self-consistent set — every seeded
+application is one the apply rules would actually have allowed — arranged so a reviewer can
+see each rule pass and fail with nothing built by hand.
+
+Row shorthand: **P** = pool shift (Retail, 2026-11-10 08:00–16:00, `Open`); **C** = closed
+Retail shift (2026-11-11 08:00–16:00, `Closed`); **A** = ada's approved shift (Retail,
+2026-11-12 09:00–17:00, `Closed`); **N12** = Retail 2026-11-12 08:00–16:00 (`Open`);
+**B** = Billing 2026-11-10 12:00–20:00 (`Open`).
+
+| Rule | See it **pass** | See it **fail** |
+|---|---|---|
+| **1 — shift is Open** | apply as `lin` → **P** | apply as `lin` → **C** (rule 1 is checked before availability, so `lin`'s window not covering **C** is irrelevant) |
+| **2 — project membership** | apply as `lin` → **P** (assigned to Retail) | apply as `rosa` → **P** (Overflow Desk only) → `404` |
+| **3 — availability covers the shift** | apply as `lin` (exact 08:00–16:00 window) → **P** | apply as `grace` (window 06:00–14:00) or `omar` (no window that day) → **P** |
+| **4 — no duplicate** | first apply as `lin` → **P** | second apply as `lin` → **P** |
+| **5 — no overlap with an approved shift** | apply as `ada` → **B** (different project, no time overlap with **A**) | apply as `ada` → **N12** (overlaps **A** 09:00–17:00) |
+| **approval cascade** | already materialised on **C**: `omar` `Approved`, `kite` `Rejected` with note `"Shift filled by another expert."`, shift `Closed` | — |
+| **recommendation ranking** | `GET /api/shifts/{P}/recommendations` as `employer` → `ada` 76.1, `nate` 71.5, `kite` 70.9 | — |
+| **ownership boundary (§7)** | any read as `employer` | the same id as `rival` → `404` |
+
+Pool-shift applicants from the seed: `ada`, `nate`, `kite` (all `Pending`, each with a
+recommendation row). Add `lin` through the API for a fourth. `ExpertRatings` carry `2026-10`
+(the month before the pool shift) for `ada`, `grace`, `lin`, `omar`, `nate`; `ada` also has
+a `2026-09` row; `kite` has none, so it scores the `3.0` default.
+
 ## Testing
 
-TODO — how to run the tests and what is covered (CLAUDE.md §8).
+```bash
+dotnet test backend/ShiftFlow.sln
+```
+
+- **SQLite in-memory**, not EF Core InMemory — the latter ignores the unique and `CHECK` constraints that several of these tests exist to prove. A fresh relational database is built per test from the real EF model.
+- Time is a `TestClock`; the current user is a `StubCurrentUser`; BCrypt is faked for speed.
+- Files are organised **by rule**, not by class (`ApplyForShift_AvailabilityTests`, `ApproveApplication_OverlapRecheckTests`, …).
+
+Coverage includes the two tests the assignment names explicitly — availability covers the
+shift → application succeeds; an overlapping approved shift exists → application is rejected —
+plus every other apply rule (pass and fail), the approval transaction (cascade, rollback,
+rule-5 re-check, already-decided, cross-tenant `404`), the availability merge algorithm, the
+recommendation ranking and tie-break, JWT issuance/validation, resource-level authorization
+across every feature, and the scenario seed's consistency and idempotency.
 
 ## Assumptions
 
-TODO — every ambiguous point in the brief and the decision taken. Keep this running.
+Every ambiguous point in the brief and the decision taken. Kept as a running list.
 
 - **Expert passwords have no strength policy.** `POST /api/experts` enforces only
   that a password is present and within a length limit; there is no minimum
@@ -151,52 +414,42 @@ TODO — every ambiguous point in the brief and the decision taken. Keep this ru
     duplicate (one `Any`) → availability coverage → approved-overlap scan. A
     repeat submit therefore gets "already applied" rather than a stale coverage
     error if the expert's windows changed since.
-- **Application withdrawal is deliberately not implemented**, because
-  `UNIQUE(ShiftId, ExpertId)` would then permanently bar the expert from
-  re-applying and the domain defines no `Withdrawn` status. The design docs
-  define no withdraw endpoint and no `Withdrawn` status (`docs/01` §3-8 locks
-  `Status` to `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, ExpertId)`
-  means a row kept as `Rejected` — or a new `Withdrawn` — would permanently bar
-  re-applying: a behaviour change the brief never asked for. The only
-  re-application-safe
+- **No application withdrawal in this phase.** The design docs define no
+  withdraw endpoint and no `Withdrawn` status (`docs/01` §3-8 locks `Status` to
+  `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, ExpertId)` means a row
+  kept as `Rejected` — or a new `Withdrawn` — would permanently bar re-applying:
+  a behaviour change the brief never asked for. The only re-application-safe
   option is a hard delete of the `Pending` row, but that is a new
   Expert-initiated delete path (every FK from the Expert side is `NO ACTION` by
   design, `docs/01` §4) and belongs in its own phase with explicit sign-off, not
   a silent addition here. Approval is likewise one-directional ("Cancelling an
   approval is out of scope"), so forward-only application state is the design's
   intent.
-- **Approve / reject endpoint shape.** `POST /api/applications/{id}/approval` and
-  `POST /api/applications/{id}/rejection` — sub-resource POSTs, no body, both
-  Employer-role and scoped to the caller's own projects (another employer's
-  application is a 404, matching every other cross-tenant path). The design docs
-  fix the *behaviour* of approve/reject, not the URL; this shape keeps the
-  decision off `PUT` (it is not an idempotent field write) and mirrors the
-  existing `POST /api/shifts/{id}/applications`.
-- **Only a `Pending` application can be decided.** The §5 approve sequence lists
-  "shift still Open" as its gate; a decided application on a still-Open shift is
-  only reachable via a prior direct `reject`, and approving it would silently
-  un-reject the row. Both `approval` and `rejection` therefore 409 on a
-  non-`Pending` application. This is a precondition guard, not a new status or
-  business rule.
-- **`GET /api/shifts/{id}/recommendations` is Employer-only and read-only.** The
-  ranking exists to help the employer choose whom to approve; the expert has no
-  view of it. Rows are written solely by the Python recommender (build order
-  step 13). The response is ordered server-side — score descending, then the
-  §5 tie-break (fewer approved hours in the month of `Shift.StartUtc`, then
-  earlier `AppliedAtUtc`) — so list position is the rank. Approved hours are
-  summed in memory (no provider-agnostic SQL for a sum of durations); a shift
-  has few applicants, so the set is small.
 - **Rule 3 leans on the Prompt 6 merge.** Coverage is a single-window
   containment test, not a gap-stitching one: because overlapping and adjacent
   windows are merged on write, a shift spanning what used to be two touching
   windows (e.g. `10:00–14:00` over `08:00–12:00` + `12:00–16:00`, now stored as
   one `08:00–16:00` window) is accepted. Two windows with a real gap between
   them still fail.
+- **The scenario seed runs only under `Development` / `AutoMigrate`, and only
+  from the API process.** It is guarded (checks for the `employer` account and
+  returns if present), uses fixed absolute 2026 dates so it never depends on the
+  wall clock, and is mirrored row-for-row by `database/03-seed.sql` for the
+  raw-script setup path. It is development data — nine accounts sharing one
+  password — and is documented as such; no password is written to the log.
+  Production migrates and seeds (if at all) as a separate deploy step.
 
 ## At Scale
 
-TODO — what a production system would add (multi-timezone, more shift statuses,
-refresh tokens, …) and why it was left out here.
+What a production system would add, and why it is out of scope here:
+
+- **Multi-timezone.** Everything is UTC end to end; conversion to local time is a frontend concern. Per-expert timezones and DST handling would touch availability, shift display, and the coverage rule.
+- **More shift statuses.** `Confirmed`, `Completed`, `NoShow`, cancellation, and re-opening a closed shift are all real call-center needs the brief does not ask for. Adding them touches the approval transaction and the state machine.
+- **Refresh tokens / logout / rotation.** The brief specifies a bare access token; a real system needs refresh tokens, revocation, and short access-token lifetimes.
+- **Shift capacity > 1.** The design fixes one expert per shift; multi-slot shifts would change the approval flow and the filtered unique index.
+- **Rating ingestion.** `ExpertRatings` is seed-only. A real system feeds it from a QA pipeline or customer surveys, with its own history and audit.
+- **A `ScoringWeights` table + admin UI.** Weights live in configuration; making them runtime-editable is a feature the brief does not need.
+- **Soft delete / audit history tables.** Deletes are physical and FK-controlled; a compliance context would want tombstones and full audit trails.
 
 ## AI Tools Used
 
@@ -229,16 +482,20 @@ Kept as a running log (docs/02 §11).
 - **Claude Code** — dev seed (`chore`): a guarded, idempotent development seed
   (one employer, one expert, a project with the expert assigned, one open shift
   and a covering availability window) run on startup under `Development` /
-  `AutoMigrate`, plus the demo-account entry above.
+  `AutoMigrate`. Superseded by the Prompt 10 scenario seed.
 - **Claude Code** — Prompt 8 (applications): `POST /api/shifts/{id}/applications`
   with all five §5 apply rules enforced in `ApplicationService` (rule 2 → 404,
   rules 1/3/4/5 → 409), the dual-role `GET /api/applications` history, the
   no-withdrawal decision, and one passing + one failing test per rule including
   the adjacent-shift and merged-boundary cases.
-- **Claude Code** — Prompt 9 (approval): the `ApprovalService` approve flow —
-  one explicit transaction over the ownership check, the still-Open check, the
-  at-approve-time re-check of apply rule 5, the approved row, the shift's move to
-  `Closed`, and the sibling rejections — plus the one-application `reject`, the
-  read-only `GET /api/shifts/{id}/recommendations` (score desc, §5 tie-break),
-  the `IAppDbContext.BeginTransactionAsync` seam, and the approval / rejection /
-  ranking tests.
+- **Claude Code** — Prompt 9 (approval): `ApprovalService` — approve inside one
+  transaction (own the project, shift still Open, application still Pending,
+  re-check rule 5, close the shift, cascade-reject the siblings) and single-row
+  reject; the explicit-transaction seam on `IAppDbContext`; the read-only
+  `GET /api/shifts/{id}/recommendations` ranking with the §5 tie-break; and the
+  approval / rejection / ranking tests.
+- **Claude Code** — Prompt 10 (seed & docs): the `SeedData` scenario seed and its
+  hand-written `database/03-seed.sql` mirror (replacing the `chore` dev seed),
+  the gated migrate + seed with no password logged, tests for the
+  previously-uncovered decision branches (already-decided, cross-project
+  overlap, unknown reject id), and this README.
