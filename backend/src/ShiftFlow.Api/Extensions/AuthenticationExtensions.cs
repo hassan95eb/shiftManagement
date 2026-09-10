@@ -18,13 +18,15 @@ public static class AuthenticationExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-            ?? throw new InvalidOperationException($"Missing '{JwtOptions.SectionName}' configuration section.");
+        var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 
-        if (string.IsNullOrWhiteSpace(jwt.Key) || Encoding.UTF8.GetByteCount(jwt.Key) < 32)
+        // Same rules as the ValidateOnStart() check in AddInfrastructure, run here
+        // too so misconfiguration fails at registration, before the host is built.
+        var validation = new JwtOptionsValidator().Validate(name: null, jwt);
+        if (validation.Failed)
         {
             throw new InvalidOperationException(
-                "Jwt:Key must be supplied from the environment (Jwt__Key) and be at least 32 bytes.");
+                "Invalid JWT configuration: " + string.Join(" ", validation.Failures));
         }
 
         services
