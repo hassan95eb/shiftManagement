@@ -62,6 +62,19 @@ TODO — link to [docs/01-erd-and-schema.md](docs/01-erd-and-schema.md).
 - `Shifts.RowVersion` is a real `rowversion` column. `sys.types` reports it
   under the legacy synonym **`timestamp`** — same 8-byte type, nothing to fix.
 
+### Index usage — shift listings
+
+Checked against the running SQL Server container with actual execution plans, not
+by reasoning. `IX_Shifts_Status_StartUtc` is seek-served with the sort eliminated
+for the covered "open shifts ordered by start time" shape it was designed for
+(`docs/01` §5). The expert-facing open-shift listing is instead served by a seek
+on `IX_Shifts_ProjectId_Status`: the join to the expert's handful of assigned
+projects makes `ProjectId` the selective leading column, and no scan of `Shifts`
+happens. The multi-column employer list (`SELECT *`-style, filtered by
+`Status`/date) falls back to a clustered scan because `Open` is not selective at
+scale; adding `INCLUDE` columns to make it index-served was considered and
+rejected — a schema change not justified for this data volume.
+
 ## Testing
 
 TODO — how to run the tests and what is covered (CLAUDE.md §8).
