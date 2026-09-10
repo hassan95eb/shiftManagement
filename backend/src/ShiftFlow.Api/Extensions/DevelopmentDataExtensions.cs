@@ -5,10 +5,16 @@ using ShiftFlow.Infrastructure.Persistence;
 namespace ShiftFlow.Api.Extensions;
 
 /// <summary>
-/// Startup glue for local, hands-on testing: apply any pending migrations and
-/// insert the development login seed (<see cref="DevelopmentSeeder"/>). Both
-/// steps run only in the Development environment or when the <c>AutoMigrate</c>
-/// configuration flag is set, and both are safe to run on every startup.
+/// Startup convenience for local, hands-on testing: apply any pending migrations
+/// and insert the scenario seed (<see cref="SeedData"/>). Both steps run only in
+/// the <c>Development</c> environment or when the <c>AutoMigrate</c> configuration
+/// flag is set, and both are safe to run on every startup.
+/// <para>
+/// A production deployment leaves <c>AutoMigrate</c> unset and runs
+/// <c>dotnet ef database update</c> (or the generated <c>database/*.sql</c>) as a
+/// separate, reviewed deploy step — the API process never migrates a real
+/// database, and the scenario seed never reaches one.
+/// </para>
 /// </summary>
 public static class DevelopmentDataExtensions
 {
@@ -29,11 +35,10 @@ public static class DevelopmentDataExtensions
         var db = services.GetRequiredService<AppDbContext>();
         await db.Database.MigrateAsync(cancellationToken);
 
-        var seeder = new DevelopmentSeeder(
+        var seeder = new SeedData(
             db,
             services.GetRequiredService<IPasswordHasher>(),
-            services.GetRequiredService<IClock>(),
-            services.GetRequiredService<ILogger<DevelopmentSeeder>>());
+            services.GetRequiredService<ILogger<SeedData>>());
 
         await seeder.SeedAsync(cancellationToken);
     }
