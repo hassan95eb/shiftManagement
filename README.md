@@ -151,17 +151,41 @@ TODO — every ambiguous point in the brief and the decision taken. Keep this ru
     duplicate (one `Any`) → availability coverage → approved-overlap scan. A
     repeat submit therefore gets "already applied" rather than a stale coverage
     error if the expert's windows changed since.
-- **No application withdrawal in this phase.** The design docs define no
-  withdraw endpoint and no `Withdrawn` status (`docs/01` §3-8 locks `Status` to
-  `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, ExpertId)` means a row
-  kept as `Rejected` — or a new `Withdrawn` — would permanently bar re-applying:
-  a behaviour change the brief never asked for. The only re-application-safe
+- **Application withdrawal is deliberately not implemented**, because
+  `UNIQUE(ShiftId, ExpertId)` would then permanently bar the expert from
+  re-applying and the domain defines no `Withdrawn` status. The design docs
+  define no withdraw endpoint and no `Withdrawn` status (`docs/01` §3-8 locks
+  `Status` to `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, ExpertId)`
+  means a row kept as `Rejected` — or a new `Withdrawn` — would permanently bar
+  re-applying: a behaviour change the brief never asked for. The only
+  re-application-safe
   option is a hard delete of the `Pending` row, but that is a new
   Expert-initiated delete path (every FK from the Expert side is `NO ACTION` by
   design, `docs/01` §4) and belongs in its own phase with explicit sign-off, not
   a silent addition here. Approval is likewise one-directional ("Cancelling an
   approval is out of scope"), so forward-only application state is the design's
   intent.
+- **Approve / reject endpoint shape.** `POST /api/applications/{id}/approval` and
+  `POST /api/applications/{id}/rejection` — sub-resource POSTs, no body, both
+  Employer-role and scoped to the caller's own projects (another employer's
+  application is a 404, matching every other cross-tenant path). The design docs
+  fix the *behaviour* of approve/reject, not the URL; this shape keeps the
+  decision off `PUT` (it is not an idempotent field write) and mirrors the
+  existing `POST /api/shifts/{id}/applications`.
+- **Only a `Pending` application can be decided.** The §5 approve sequence lists
+  "shift still Open" as its gate; a decided application on a still-Open shift is
+  only reachable via a prior direct `reject`, and approving it would silently
+  un-reject the row. Both `approval` and `rejection` therefore 409 on a
+  non-`Pending` application. This is a precondition guard, not a new status or
+  business rule.
+- **`GET /api/shifts/{id}/recommendations` is Employer-only and read-only.** The
+  ranking exists to help the employer choose whom to approve; the expert has no
+  view of it. Rows are written solely by the Python recommender (build order
+  step 13). The response is ordered server-side — score descending, then the
+  §5 tie-break (fewer approved hours in the month of `Shift.StartUtc`, then
+  earlier `AppliedAtUtc`) — so list position is the rank. Approved hours are
+  summed in memory (no provider-agnostic SQL for a sum of durations); a shift
+  has few applicants, so the set is small.
 - **Rule 3 leans on the Prompt 6 merge.** Coverage is a single-window
   containment test, not a gap-stitching one: because overlapping and adjacent
   windows are merged on write, a shift spanning what used to be two touching
@@ -211,3 +235,10 @@ Kept as a running log (docs/02 §11).
   rules 1/3/4/5 → 409), the dual-role `GET /api/applications` history, the
   no-withdrawal decision, and one passing + one failing test per rule including
   the adjacent-shift and merged-boundary cases.
+- **Claude Code** — Prompt 9 (approval): the `ApprovalService` approve flow —
+  one explicit transaction over the ownership check, the still-Open check, the
+  at-approve-time re-check of apply rule 5, the approved row, the shift's move to
+  `Closed`, and the sibling rejections — plus the one-application `reject`, the
+  read-only `GET /api/shifts/{id}/recommendations` (score desc, §5 tie-break),
+  the `IAppDbContext.BeginTransactionAsync` seam, and the approval / rejection /
+  ranking tests.

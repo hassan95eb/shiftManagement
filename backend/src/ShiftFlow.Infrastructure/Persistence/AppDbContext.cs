@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Storage;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Domain.Entities;
 
@@ -37,6 +38,9 @@ public class AppDbContext : DbContext, IAppDbContext
     public DbSet<ExpertRating> ExpertRatings => Set<ExpertRating>();
 
     public DbSet<Recommendation> Recommendations => Set<Recommendation>();
+
+    public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
+        Database.BeginTransactionAsync(cancellationToken);
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
