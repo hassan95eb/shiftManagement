@@ -131,6 +131,43 @@ TODO — every ambiguous point in the brief and the decision taken. Keep this ru
   the caller). An employer's need to know whether an expert covers a shift is
   met server-side at approval time (build order step 11), so exposing an
   availability read to employers now would be unused surface (CLAUDE.md §2).
+- **Apply-rule violations: which HTTP status and why.** `POST
+  /api/shifts/{id}/applications` enforces all five §5 rules in the Application
+  layer, each with its own message; the DB constraints
+  (`UQ_ShiftApplications_Shift_Expert`, `UX_ShiftApplications_OneApproved`) stay
+  a race backstop, not the primary check.
+  - **Rule 2 — project membership → 404.** A shift on a project the caller is
+    not assigned to is indistinguishable from an unknown id, so membership
+    cannot be probed (CLAUDE.md §7). Same 404 as the expert shift read.
+  - **Rules 1, 3, 4, 5 → 409** (`BusinessRuleViolation`). Once membership is
+    established the shift's existence is not secret, so these report the real
+    conflict: shift not Open ("no longer open for applications"), availability
+    gap ("does not cover the whole of this shift"), duplicate ("already applied
+    to this shift"), approved-shift overlap ("overlaps another shift you are
+    already approved for"). This is a deliberate divergence from the
+    expert-facing shift *read*, which 404s a Closed shift — there, existence is
+    still being probed; here it is not.
+  - **Check order** after the membership gate is cheapest-first: status →
+    duplicate (one `Any`) → availability coverage → approved-overlap scan. A
+    repeat submit therefore gets "already applied" rather than a stale coverage
+    error if the expert's windows changed since.
+- **No application withdrawal in this phase.** The design docs define no
+  withdraw endpoint and no `Withdrawn` status (`docs/01` §3-8 locks `Status` to
+  `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, ExpertId)` means a row
+  kept as `Rejected` — or a new `Withdrawn` — would permanently bar re-applying:
+  a behaviour change the brief never asked for. The only re-application-safe
+  option is a hard delete of the `Pending` row, but that is a new
+  Expert-initiated delete path (every FK from the Expert side is `NO ACTION` by
+  design, `docs/01` §4) and belongs in its own phase with explicit sign-off, not
+  a silent addition here. Approval is likewise one-directional ("Cancelling an
+  approval is out of scope"), so forward-only application state is the design's
+  intent.
+- **Rule 3 leans on the Prompt 6 merge.** Coverage is a single-window
+  containment test, not a gap-stitching one: because overlapping and adjacent
+  windows are merged on write, a shift spanning what used to be two touching
+  windows (e.g. `10:00–14:00` over `08:00–12:00` + `12:00–16:00`, now stored as
+  one `08:00–16:00` window) is accepted. Two windows with a real gap between
+  them still fail.
 
 ## At Scale
 
@@ -162,7 +199,15 @@ Kept as a running log (docs/02 §11).
 - **Claude Code** — Prompt 6 (availability): the merge-on-insert/update algorithm,
   the `AvailabilityService` use cases and Expert-role endpoints, the approved-shift
   coverage guard on update and delete, and their tests.
+- **Claude Code** — Prompt 7 (shifts): employer shift management and the
+  expert-facing open-shift read, the `RowVersion` 409 path, and the shift
+  visibility / edit-guardrail tests.
 - **Claude Code** — dev seed (`chore`): a guarded, idempotent development seed
   (one employer, one expert, a project with the expert assigned, one open shift
   and a covering availability window) run on startup under `Development` /
   `AutoMigrate`, plus the demo-account entry above.
+- **Claude Code** — Prompt 8 (applications): `POST /api/shifts/{id}/applications`
+  with all five §5 apply rules enforced in `ApplicationService` (rule 2 → 404,
+  rules 1/3/4/5 → 409), the dual-role `GET /api/applications` history, the
+  no-withdrawal decision, and one passing + one failing test per rule including
+  the adjacent-shift and merged-boundary cases.
