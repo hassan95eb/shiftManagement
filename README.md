@@ -96,3 +96,18 @@ Kept as a running log (docs/02 §11).
 - **Claude Code** — repository scaffold: solution and project layout, root config files
   (`.gitignore`, `.editorconfig`, `.env.example`), `docker-compose.yml` (db service),
   and the CI workflow.
+- **Claude Code** — Prompt 2 (persistence): the `IAppDbContext` and `IClock`
+  abstractions, `AppDbContext` with a per-entity EF Core configuration each, and
+  tests asserting the mapping matches `docs/01`.
+- **Claude Code** — Prompt 3 (migration): EF Core migration tooling, the
+  `InitialCreate` migration verified against a running SQL Server container, the
+  generated `database/01-schema.sql` / `02-indexes.sql` scripts with a seed
+  placeholder, and the docs describing that generated-script contract.
+- **Claude Code** — Prompt 4 (auth): identity abstractions and their
+  Infrastructure implementations, the `/api/auth/login` endpoint, the uniform
+  `ApiError` shape and API composition root, the move to Swashbuckle for OpenAPI
+  (clearing NU1903), auth tests, and fixes making `ICurrentUser` and JWT
+  startup fail loudly on bad input.
+- **Claude Code** — Prompt 5 (projects & experts): employer-scoped project CRUD,
+  expert registration and expert–project assignment, fail-closed employer/expert
+  id accessors, and cross-employer authorization tests.
