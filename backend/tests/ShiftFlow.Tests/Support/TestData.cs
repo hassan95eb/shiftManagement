@@ -143,4 +143,25 @@ public static class TestData
         db.SaveChanges();
         return application;
     }
+
+    public static Recommendation AddRecommendation(
+        this AppDbContext db,
+        int shiftId,
+        int expertId,
+        decimal score,
+        string? reason = null,
+        DateTime? computedAtUtc = null)
+    {
+        var recommendation = new Recommendation
+        {
+            ShiftId = shiftId,
+            ExpertId = expertId,
+            Score = score,
+            Reason = reason ?? $"Total {score}",
+            ComputedAtUtc = computedAtUtc ?? new DateTime(2026, 6, 20, 0, 0, 0, DateTimeKind.Utc),
+        };
+        db.Recommendations.Add(recommendation);
+        db.SaveChanges();
+        return recommendation;
+    }
 }
