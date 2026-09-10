@@ -1,8 +1,15 @@
 # ---------------------------------------------------------------------------
 # ShiftFlow — Docker Compose
 #
-# Scaffold phase: only the `db` service exists. The `api`, `web` and one-shot
-# `recommender` services are added in later phases (CLAUDE.md §10 / docs/02 §6).
+# Services so far: `db` (SQL Server) and the one-shot `recommender`. The `api`
+# and `web` services are added in the full-compose phase (CLAUDE.md §10 / docs/02
+# §6).
+#
+# `recommender` sits behind a Compose profile so `docker compose up` never
+# starts it. Run it on demand, against a database that already has the schema
+# and seed (the api service or database/*.sql):
+#
+#     docker compose run --rm recommender
 # ---------------------------------------------------------------------------
 
 services:
@@ -30,6 +37,33 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  # One-shot applicant recommender. `profiles` keeps it out of `docker compose
+  # up`; `docker compose run --rm recommender` enables the profile for that one
+  # invocation. It scores every Open shift's applicants and exits.
+  recommender:
+    profiles: ["recommender"]
+    build:
+      context: .
+      dockerfile: docker/recommender.Dockerfile
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the Compose network the database is reachable as `db:1433`.
+      MSSQL_HOST: db
+      MSSQL_PORT: "1433"
+      MSSQL_DB: ${MSSQL_DB:-ShiftFlow}
+      MSSQL_SA_USER: sa
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env}
+      # Shared scoring knobs — same names the API binds (docs/02 §5). Unset ->
+      # config.py falls back to the CLAUDE.md §5 defaults.
+      SCORING__RATINGWEIGHT: ${SCORING__RATINGWEIGHT:-0.30}
+      SCORING__WORKLOADWEIGHT: ${SCORING__WORKLOADWEIGHT:-0.30}
+      SCORING__AVAILABILITYWEIGHT: ${SCORING__AVAILABILITYWEIGHT:-0.40}
+      SCORING__MONTHLYCAP: ${SCORING__MONTHLYCAP:-160}
+      SCORING__RATINGDEFAULT: ${SCORING__RATINGDEFAULT:-3.0}
 
 volumes:
   mssql-data:
