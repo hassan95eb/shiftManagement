@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage;
 using ShiftFlow.Domain.Entities;
 
 namespace ShiftFlow.Application.Abstractions;
@@ -43,4 +44,16 @@ public interface IAppDbContext
     /// </summary>
     EntityEntry<TEntity> Entry<TEntity>(TEntity entity)
         where TEntity : class;
+
+    /// <summary>
+    /// Opens an explicit database transaction. The approval flow (CLAUDE.md §5,
+    /// docs/01-erd-and-schema.md §6) is the one place a single
+    /// <see cref="SaveChangesAsync"/> is not enough: the approved application,
+    /// the shift's move to <c>Closed</c> and the sibling rejections have to
+    /// commit or roll back as a unit, and rule 5 is re-checked inside that same
+    /// transaction so the decision is made against a state that cannot shift
+    /// under it. Every other use case stays on the implicit
+    /// <see cref="SaveChangesAsync"/> transaction.
+    /// </summary>
+    Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default);
 }
