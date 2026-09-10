@@ -22,6 +22,10 @@ builder.Services.AddLocalDevCors();
 
 var app = builder.Build();
 
+// Development / AutoMigrate only: bring the schema up to date and insert the
+// manual-testing login seed. No-op in every other environment.
+await app.UseDevelopmentSeedAsync();
+
 // First in the pipeline: everything downstream reports failures as one ApiError shape.
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
