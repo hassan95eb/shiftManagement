@@ -38,6 +38,7 @@ public class ExceptionHandlingMiddlewareTests
         { new ForbiddenAccessException(), 403, "Forbidden" },
         { new NotFoundException("no such project"), 404, "NotFound" },
         { new BusinessRuleViolationException("rule broken"), 409, "BusinessRuleViolation" },
+        { new ConcurrencyConflictException("reload and retry"), 409, "ConcurrencyConflict" },
         { new InvalidOperationException("boom"), 500, "InternalServerError" },
     };
 
