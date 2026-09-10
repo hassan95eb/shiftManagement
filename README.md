@@ -83,6 +83,21 @@ TODO — every ambiguous point in the brief and the decision taken. Keep this ru
   Left as a visible build warning for now (`TreatWarningsAsErrors` on the src
   projects excludes `NU1903` via `WarningsNotAsErrors`). The fix is bundled with
   choosing the OpenAPI/Swagger stack in Prompt 4; remove the exclusion then.
+- **Availability windows that touch are merged.** `08:00–12:00` and
+  `12:00–16:00` are stored as one `08:00–16:00` window: a shift spanning the
+  boundary instant needs unbroken coverage, so the merge boundary is closed
+  (`<=`). This is deliberately the opposite of the shift-overlap rule
+  (CLAUDE.md §5 rule 5), which is half-open so back-to-back shifts do not
+  conflict.
+- **Availability timestamps are truncated to whole seconds.** The storage
+  column is `datetime2(0)`, so the request validator drops any sub-second part
+  before the merge runs — the arithmetic uses the same precision the database
+  keeps, and a re-post of a stored window is a no-op.
+- **No employer-facing read of an expert's availability.** The Prompt 6
+  endpoints are Expert-role only (create, list, update, delete, all scoped to
+  the caller). An employer's need to know whether an expert covers a shift is
+  met server-side at approval time (build order step 11), so exposing an
+  availability read to employers now would be unused surface (CLAUDE.md §2).
 
 ## At Scale
 
@@ -111,3 +126,6 @@ Kept as a running log (docs/02 §11).
 - **Claude Code** — Prompt 5 (projects & experts): employer-scoped project CRUD,
   expert registration and expert–project assignment, fail-closed employer/expert
   id accessors, and cross-employer authorization tests.
+- **Claude Code** — Prompt 6 (availability): the merge-on-insert/update algorithm,
+  the `AvailabilityService` use cases and Expert-role endpoints, the approved-shift
+  coverage guard on update and delete, and their tests.
