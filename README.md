@@ -27,7 +27,21 @@ TODO — how to run without Docker.
 
 ## Demo Accounts
 
-TODO — username and password for the Employer and Expert roles.
+> **Development only.** These accounts are created by the startup development
+> seed, which runs in the `Development` environment or when `AutoMigrate` is set.
+> They must never exist in a real deployment. The full phase-10 seed replaces
+> this.
+
+| Role | Username | Password |
+|---|---|---|
+| Employer | `demo-employer` | `Demo!Pass1` |
+| Expert | `demo-expert` | `Demo!Pass1` |
+
+The same seed also creates one project (`Demo Project`) owned by the employer
+with the expert assigned to it, one open shift starting tomorrow at 09:00 UTC,
+and an availability window on the expert that fully covers that shift — enough to
+walk login and the apply flow through Swagger. Running the API again does not
+duplicate any of it. The two usernames are logged to the console on startup.
 
 ## API Documentation
 
@@ -148,3 +162,7 @@ Kept as a running log (docs/02 §11).
 - **Claude Code** — Prompt 6 (availability): the merge-on-insert/update algorithm,
   the `AvailabilityService` use cases and Expert-role endpoints, the approved-shift
   coverage guard on update and delete, and their tests.
+- **Claude Code** — dev seed (`chore`): a guarded, idempotent development seed
+  (one employer, one expert, a project with the expert assigned, one open shift
+  and a covering availability window) run on startup under `Development` /
+  `AutoMigrate`, plus the demo-account entry above.
