@@ -158,7 +158,6 @@ public sealed class ExpertProjectService
             .Select(ep => new ExpertResponse(
                 ep.Expert.Id,
                 ep.Expert.UserId,
-                ep.Expert.User.Username,
                 ep.Expert.FullName,
                 ep.Expert.IsActive,
                 ep.Expert.CreatedAtUtc))

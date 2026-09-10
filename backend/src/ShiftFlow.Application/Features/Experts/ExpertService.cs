@@ -75,7 +75,7 @@ public sealed class ExpertService
         _db.Experts.Add(expert);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return ToResponse(expert, expert.User);
+        return ToResponse(expert);
     }
 
     public async Task<IReadOnlyList<ExpertResponse>> ListAsync(CancellationToken cancellationToken)
@@ -85,8 +85,7 @@ public sealed class ExpertService
         return await _db.Experts
             .AsNoTracking()
             .OrderBy(e => e.FullName)
-            .Select(e => new ExpertResponse(
-                e.Id, e.UserId, e.User.Username, e.FullName, e.IsActive, e.CreatedAtUtc))
+            .Select(e => new ExpertResponse(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -97,12 +96,11 @@ public sealed class ExpertService
         return await _db.Experts
                    .AsNoTracking()
                    .Where(e => e.Id == expertId)
-                   .Select(e => new ExpertResponse(
-                       e.Id, e.UserId, e.User.Username, e.FullName, e.IsActive, e.CreatedAtUtc))
+                   .Select(e => new ExpertResponse(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc))
                    .FirstOrDefaultAsync(cancellationToken)
                ?? throw new NotFoundException("Expert not found.");
     }
 
-    private static ExpertResponse ToResponse(Expert e, User u) =>
-        new(e.Id, u.Id, u.Username, e.FullName, e.IsActive, e.CreatedAtUtc);
+    private static ExpertResponse ToResponse(Expert e) =>
+        new(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc);
 }

@@ -70,6 +70,14 @@ TODO — how to run the tests and what is covered (CLAUDE.md §8).
 
 TODO — every ambiguous point in the brief and the decision taken. Keep this running.
 
+- **Expert passwords have no strength policy.** `POST /api/experts` enforces only
+  that a password is present and within a length limit; there is no minimum
+  length, character-class or breach check. The brief does not define one, and it
+  is a policy decision rather than a domain rule.
+- **The employer sets the expert's initial password.** A production system would
+  email the new specialist an invitation link and let them choose their own
+  password; here the employer supplies it directly in the create request to keep
+  the flow to a single endpoint.
 - **OpenAPI advisory (NU1903).** The scaffold's `Microsoft.AspNetCore.OpenApi`
   reference pulls a transitive `Microsoft.OpenApi 2.0.0` with a known advisory.
   Left as a visible build warning for now (`TreatWarningsAsErrors` on the src
