@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ShiftFlow.Application.Features.Auth;
+using ShiftFlow.Application.Features.Availabilities;
 using ShiftFlow.Application.Features.Experts;
 using ShiftFlow.Application.Features.Projects;
 
@@ -17,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<ProjectService>();
         services.AddScoped<ExpertService>();
         services.AddScoped<ExpertProjectService>();
+        services.AddScoped<AvailabilityService>();
 
         return services;
     }

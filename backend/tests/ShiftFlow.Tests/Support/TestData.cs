@@ -65,19 +65,43 @@ public static class TestData
         return project;
     }
 
-    public static Shift AddShift(this AppDbContext db, int projectId)
+    public static Shift AddShift(this AppDbContext db, int projectId) =>
+        db.AddShift(
+            projectId,
+            new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc),
+            new DateTime(2026, 7, 1, 16, 0, 0, DateTimeKind.Utc));
+
+    public static Shift AddShift(this AppDbContext db, int projectId, DateTime startUtc, DateTime endUtc)
     {
         var shift = new Shift
         {
             ProjectId = projectId,
-            StartUtc = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc),
-            EndUtc = new DateTime(2026, 7, 1, 16, 0, 0, DateTimeKind.Utc),
+            StartUtc = startUtc,
+            EndUtc = endUtc,
             Status = ShiftStatus.Open,
             CreatedAtUtc = Seeded,
         };
         db.Shifts.Add(shift);
         db.SaveChanges();
         return shift;
+    }
+
+    public static Availability AddAvailability(
+        this AppDbContext db,
+        int expertId,
+        DateTime startUtc,
+        DateTime endUtc)
+    {
+        var window = new Availability
+        {
+            ExpertId = expertId,
+            StartUtc = startUtc,
+            EndUtc = endUtc,
+            CreatedAtUtc = Seeded,
+        };
+        db.Availabilities.Add(window);
+        db.SaveChanges();
+        return window;
     }
 
     public static ExpertProject Assign(this AppDbContext db, int expertId, int projectId)
