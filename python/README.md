@@ -1,15 +1,39 @@
-# ShiftFlow recommender — scoring
+# ShiftFlow recommender
 
-This phase is the **scoring logic only**: pure functions and their configuration.
-No database access, no entry point yet — `db.py` and `recommendation.py` arrive
-in the recommender build phase (CLAUDE.md §10 step 13).
+A standalone script that ranks the **applicants of each Open shift** and writes a
+`Score` plus a traceable `Reason` into `Recommendations`. The scoring itself is a
+set of pure functions; the database work is a thin layer around them.
 
 | File | Purpose |
 |---|---|
 | `scoring.py` | Pure functions. Standard library only — no I/O, no third-party imports. |
 | `config.py` | Resolves weights, `MonthlyCap`, the rating default and the DB connection parts from environment variables. |
+| `db.py` | `pymssql` connection, the per-shift read queries, and the idempotent `MERGE` into `Recommendations`. |
+| `recommendation.py` | Entry point — `python recommendation.py`. Loops Open shifts, filters applicants by the apply rules, calls `scoring.py`, merges the results. |
 | `test_scoring.py` | pytest. Reproduces the three seeded `Recommendations` rows byte for byte. |
-| `requirements.txt` | `pytest` for the tests. `pymssql` is added later. |
+| `requirements.txt` | `pymssql` for `db.py`, `pytest` for the tests. |
+
+## Running the recommender
+
+```bash
+# Local — needs the DB reachable and the .env at the repo root (or MSSQL_* /
+# SCORING__* exported). Reads .env automatically.
+cd python
+python -m pip install -r requirements.txt
+python recommendation.py
+
+# Docker — one-shot job behind a Compose profile, never started by `up`:
+docker compose run --rm recommender
+```
+
+It is **idempotent**: the `MERGE` is keyed on `(ShiftId, ExpertId)`, so a second
+run with no state change inserts nothing, updates nothing, and leaves
+`ComputedAtUtc` untouched. An applicant who can no longer be scored — no
+availability window covers the shift (so `AvailabilityScore` is undefined), lost
+project membership, or picked up an overlapping approved shift — is **skipped**,
+and any recommendation a previous run wrote for that pair is **removed** through
+the `MERGE`'s `WHEN NOT MATCHED BY SOURCE` arm. Only `Recommendations` is ever
+written (docs/01 §4).
 
 ## The formula (CLAUDE.md §5, not reinterpreted)
 
@@ -139,7 +163,7 @@ same defaults the backend's `.env.example` uses.
 | `MSSQL_PORT` | `1433` | SQL Server port |
 | `MSSQL_DB` | `ShiftFlow` | Database name |
 | `MSSQL_SA_USER` | `sa` | Login |
-| `MSSQL_SA_PASSWORD` | *(none)* | Password — `None` when unset; connecting is a later phase |
+| `MSSQL_SA_PASSWORD` | *(none)* | Password — no default; `recommendation.py` exits with an error if it is unset |
 
 ## Worked example — `ada` on the pool shift
 

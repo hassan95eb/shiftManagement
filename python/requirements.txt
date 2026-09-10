@@ -1,6 +1,10 @@
 # Recommender -- Python dependencies.
 #
-# scoring.py and config.py use only the standard library. Only the tests need a
-# third-party package. pymssql (database access) is added in the recommender
-# build phase (CLAUDE.md #10 step 13), not here.
+# scoring.py and config.py use only the standard library. db.py talks to SQL
+# Server through pymssql; recommendation.py is the entry point and needs nothing
+# more. pytest is for the pure-function tests only.
+#
+# pymssql ships manylinux wheels with FreeTDS bundled, so `pip install` needs no
+# build toolchain on the python:*-slim image (docker/recommender.Dockerfile).
+pymssql>=2.3,<3
 pytest>=8.2,<9
