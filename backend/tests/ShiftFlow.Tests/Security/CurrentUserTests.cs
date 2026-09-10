@@ -106,4 +106,46 @@ public class CurrentUserTests
         Assert.Equal(42, current.EmployerId);
         Assert.Null(current.ExpertId);
     }
+
+    [Fact]
+    public void RequireEmployerId_returns_the_id_when_present_and_throws_when_absent()
+    {
+        var employer = For(WithPrincipal(Authenticated(
+            new Claim(ClaimNames.Sub, "7"),
+            new Claim(ClaimNames.Role, "Employer"),
+            new Claim(ClaimNames.EmployerId, "42"))));
+        Assert.Equal(42, employer.RequireEmployerId());
+
+        // An Employer-role token without the employerId claim: an ownership
+        // filter must fail loudly, not silently compare against null.
+        var missing = For(WithPrincipal(Authenticated(
+            new Claim(ClaimNames.Sub, "7"),
+            new Claim(ClaimNames.Role, "Employer"))));
+        Assert.Throws<InvalidOperationException>(() => missing.RequireEmployerId());
+    }
+
+    [Fact]
+    public void RequireExpertId_returns_the_id_when_present_and_throws_when_absent()
+    {
+        var expert = For(WithPrincipal(Authenticated(
+            new Claim(ClaimNames.Sub, "3"),
+            new Claim(ClaimNames.Role, "Expert"),
+            new Claim(ClaimNames.ExpertId, "99"))));
+        Assert.Equal(99, expert.RequireExpertId());
+
+        var employer = For(WithPrincipal(Authenticated(
+            new Claim(ClaimNames.Sub, "7"),
+            new Claim(ClaimNames.Role, "Employer"),
+            new Claim(ClaimNames.EmployerId, "42"))));
+        Assert.Throws<InvalidOperationException>(() => employer.RequireExpertId());
+    }
+
+    [Fact]
+    public void Require_accessors_throw_when_unauthenticated()
+    {
+        var current = For(context: null);
+
+        Assert.Throws<InvalidOperationException>(() => current.RequireEmployerId());
+        Assert.Throws<InvalidOperationException>(() => current.RequireExpertId());
+    }
 }

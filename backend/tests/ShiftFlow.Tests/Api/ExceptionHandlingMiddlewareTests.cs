@@ -36,6 +36,7 @@ public class ExceptionHandlingMiddlewareTests
         { new ValidationException("bad input"), 400, "ValidationFailed" },
         { new InvalidCredentialsException(), 401, "InvalidCredentials" },
         { new ForbiddenAccessException(), 403, "Forbidden" },
+        { new NotFoundException("no such project"), 404, "NotFound" },
         { new BusinessRuleViolationException("rule broken"), 409, "BusinessRuleViolation" },
         { new InvalidOperationException("boom"), 500, "InternalServerError" },
     };
