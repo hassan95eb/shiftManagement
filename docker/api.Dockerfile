@@ -47,6 +47,9 @@ WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
 
-# aspnet:10.0 already runs as the non-root `app` user.
 COPY --from=build /app/publish ./
+
+# aspnet:10.0 (Debian) runs as root unless told otherwise; $APP_UID is the
+# unprivileged "app" account the image already provisions for this.
+USER $APP_UID
 ENTRYPOINT ["dotnet", "ShiftFlow.Api.dll"]
