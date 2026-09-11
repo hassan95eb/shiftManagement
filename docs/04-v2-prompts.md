@@ -1,6 +1,6 @@
 # 04 — v2 Implementation Prompts (scope change)
 
-This document supersedes `03-implementation-prompts.md` for all work after v1.0.0.
+This document supersedes the v1 prompt plan for all work after v1.0.0.
 It covers **backend and data only**. Frontend prompts are deliberately not written
 yet: the UI is designed first, implementation follows.
 
@@ -10,8 +10,10 @@ yet: the UI is designed first, implementation follows.
 
 - One prompt = one branch = one review = one merge.
 - Branch names follow the prompt number here: `feat/v1-rename`, `feat/v2-manager`, …
-- Each prompt ends with a phase report in **the same fixed format used in
-  `03-implementation-prompts.md`**. Do not invent a new report format.
+- Each prompt ends with a phase report in **the same fixed format already used
+  for the v1 prompts**. That format was never captured in a file in this
+  repository — it lives only in the review conversations that approved each
+  v1 phase. Carry it forward from there; do not invent a new one.
 - The branch is never pushed before its report is approved in chat.
 - Where this document and `CLAUDE.md` conflict, `CLAUDE.md` wins.
 
@@ -183,10 +185,13 @@ application-based open shifts.
 
 - `Shifts.AssignedCallAgentId` — nullable FK, `NO ACTION`.
 - Extend the status CHECK to `Open | Assigned | Released | Closed`.
-- `POST /api/shifts/{id}/assignment` (Supervisor) — assigns an agent directly,
-  `Open → Assigned`.
-- `DELETE /api/shifts/{id}/assignment` — `Assigned → Open`, allowed only while no
-  attendance exists for that shift.
+- `POST /api/shifts/{id}/assignment` (Supervisor) — assigns an agent directly.
+  Accepts a shift in `Open` (`Open → Assigned`) or, once V5 introduces
+  `Released`, in `Released` (`Released → Assigned`) — the direct-fill path a
+  Supervisor uses when no cover application arrives (see V6).
+- `DELETE /api/shifts/{id}/assignment` — `Assigned → Open` only, allowed only
+  while no attendance exists for that shift. It does not accept a `Released`
+  shift.
 - Extend the existing overlap check so an assigned shift blocks overlapping
   assignment and overlapping application for the same agent.
 
@@ -197,7 +202,8 @@ application-based open shifts.
   - `Open → Assigned` — assignment endpoint
   - `Open → Closed` — the existing application-approval transaction
   - `Assigned → Released` — leave approval (V5)
-  - `Released → Assigned` — cover approval (V6)
+  - `Released → Assigned` — the assignment endpoint (direct fill, this prompt)
+    or cover approval (V6)
 - Assignment does not go through `ShiftApplications` and creates no application
   row.
 - The existing rule stands: a shift's time may be corrected only while `Open`
@@ -206,7 +212,8 @@ application-based open shifts.
 ## Acceptance
 
 - Assigning an agent who already has an overlapping shift returns 409.
-- Assigning to a non-`Open` shift returns 409.
+- Assigning to a shift in `Assigned` or `Closed` returns 409.
+- Assigning to a `Released` shift succeeds and sets it back to `Assigned`.
 - `RowVersion` conflict on concurrent assignment returns 409, with a test.
 
 ---
@@ -280,6 +287,17 @@ One request table serving both leave and downtime, with a Jalali leave year.
   and `/rejection` (Supervisor).
 - The request payload returned to the Supervisor includes the agent's remaining
   leave balance.
+- Add the filtered unique index below, guarding against two `Leave` requests
+  being approved on the same shift under concurrent approval:
+
+  ```sql
+  CREATE UNIQUE INDEX UX_AgentRequests_OneApprovedLeave
+  ON AgentRequests (ShiftId)
+  WHERE Status = 'Approved' AND RequestType = 'Leave';
+  ```
+
+  Filtered on `Leave` only — several approved `Downtime` rows on one shift are
+  legal.
 
 ## Rules
 
@@ -307,6 +325,8 @@ One request table serving both leave and downtime, with a Jalali leave year.
   request time.
 - Downtime beyond the monthly cap returns 409.
 - Downtime outside the shift window returns 400.
+- A concurrency test proves double leave approval on the same shift fails at
+  the database level (`UX_AgentRequests_OneApprovedLeave`).
 
 ---
 
@@ -338,6 +358,10 @@ Let other agents pick up a released shift, reusing `ShiftApplications`.
 - Rules are rechecked at approval time — the covering agent's overlap is
   revalidated then, not only at apply time.
 - Withdrawal stays unimplemented, as in v1.
+- A Released shift can also be filled directly through the assignment endpoint
+  (V3) without any cover application arriving first. That direct fill rejects
+  all pending `Cover` applications on the same shift with a `DecisionNote`, in
+  the same transaction, exactly as a cover approval rejects its competitors.
 
 ## Acceptance
 
@@ -345,6 +369,9 @@ Let other agents pick up a released shift, reusing `ShiftApplications`.
   note, and the shift shows the covering agent.
 - The original agent's approved leave is untouched by the cover.
 - A concurrency test proves the database guard holds under parallel approval.
+- A direct fill of a `Released` shift with pending `Cover` applications leaves
+  all of them `Rejected` with a `DecisionNote`, in the same transaction as the
+  assignment.
 
 ---
 
@@ -398,7 +425,9 @@ classes.
 
 ## Tasks
 
-- `Ratings.Breakdown` `NVARCHAR(400) NULL`.
+- `Ratings.Breakdown` `NVARCHAR(400) NULL`. In the same migration, alter
+  `Ratings.Period` from `CHAR(7)` to `NVARCHAR(7)` to match
+  `SupervisorEvaluations.Period` — still one migration for this prompt.
 - Implement the rating computation exactly as Appendix A specifies.
 - `POST /api/ratings/recompute?period=2026-08` (Manager only) — manual trigger,
   idempotent, same upsert semantics as the Python side.
@@ -581,7 +610,7 @@ ExpectedHours   = committed shift hours
                   - approved downtime hours
 
 Attendance      = min(PresentHours / ExpectedHours, 1)
-Punctuality     = OnTimeShifts / AttendedShifts          (0 when AttendedShifts = 0)
+Punctuality     = OnTimeShifts / AttendedShifts
 Reliability     = max(1 - (UnexcusedAbsences + LateNoticeLeaves)
                           / CommittedShifts, 0)
 
@@ -592,6 +621,17 @@ Rating          = 1.0 + 4.0 * (0.50*AutoRaw + 0.50*SupRaw)
 Rating          = 1.0 + 4.0 * AutoRaw          when no evaluation exists
 ```
 
+- A component whose denominator is zero is **undefined**, not zero: Attendance
+  is undefined when `ExpectedHours = 0`; Punctuality is undefined when
+  `AttendedShifts = 0`.
+- An undefined component is dropped from `AutoRaw` and the remaining automatic
+  weights are renormalized proportionally — the same technique already used
+  when no supervisor evaluation exists.
+- If all three automatic components are undefined, no `Ratings` row is written
+  for the period; the 3.0 default applies.
+- When **both** Attendance and Punctuality are undefined, no `Ratings` row is
+  written for the period; the 3.0 default applies. Reliability alone is not a
+  sufficient basis for a rating.
 - On time: first heartbeat ≤ shift start + grace (default 5 minutes).
 - Late-notice leave: requested less than 24 hours before shift start, **even if
   approved**.
@@ -607,7 +647,9 @@ Attendance 152/160h -> 0.475 | Punctuality 18/20 -> 0.270 | Reliability 1 absenc
 ```
 
 ASCII `->`, components at 3 dp, Rating at 1 dp. When no evaluation exists, the
-`Supervisor` segment is replaced by `Supervisor none -> normalized`.
+`Supervisor` segment is replaced by `Supervisor none -> normalized`. When a
+component's denominator is zero, its own segment is replaced the same way:
+`Attendance n/a -> normalized` or `Punctuality n/a -> normalized`.
 
 ## Score — shape unchanged from v1
 
