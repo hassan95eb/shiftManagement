@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Features.Applications;
 using ShiftFlow.Domain.Entities;
 using ShiftFlow.Domain.Enums;
@@ -25,8 +26,11 @@ public class ApproveApplication_OverlapRecheckTests
 
     private static DateTime On(int day) => new(2026, 6, day, 12, 0, 0, DateTimeKind.Utc);
 
-    private static ApprovalService ServiceFor(SqliteTestContext ctx, Supervisor supervisor) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id), new TestClock(Now));
+    private static ApprovalService ServiceFor(SqliteTestContext ctx, Supervisor supervisor)
+    {
+        var currentUser = StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id);
+        return new(ctx.Db, currentUser, new AccessScope(currentUser), new TestClock(Now));
+    }
 
     [Fact]
     public async Task Approval_fails_when_the_call_agent_gained_an_overlapping_approved_shift_since_applying()

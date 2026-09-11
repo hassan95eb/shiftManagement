@@ -31,11 +31,18 @@ public sealed class SeedDataTests
 
         Assert.Equal(2, await db.Supervisors.CountAsync());
         Assert.Equal(7, await db.CallAgents.CountAsync());
-        Assert.Equal(9, await db.Users.CountAsync());
+        Assert.Equal(10, await db.Users.CountAsync());
         Assert.Equal(3, await db.Projects.CountAsync());
         Assert.Equal(5, await db.Shifts.CountAsync());
         Assert.Equal(6, await db.ShiftApplications.CountAsync());
         Assert.Equal(3, await db.Recommendations.CountAsync());
+
+        // The manager account exists, has no Supervisor/CallAgent profile, and is hashed.
+        var manager = await db.Users.SingleAsync(u => u.Username == SeedData.ManagerUsername);
+        Assert.Equal(UserRole.Manager, manager.Role);
+        Assert.NotEqual(SeedData.DemoPassword, manager.PasswordHash);
+        Assert.False(await db.Supervisors.AnyAsync(s => s.UserId == manager.Id));
+        Assert.False(await db.CallAgents.AnyAsync(c => c.UserId == manager.Id));
 
         // Both supervisor accounts exist and are hashed, not stored in the clear.
         var supervisor = await db.Users.SingleAsync(u => u.Username == SeedData.SupervisorUsername);
@@ -144,7 +151,7 @@ public sealed class SeedDataTests
 
         var db = ctx.NewContext();
 
-        Assert.Equal(9, await db.Users.CountAsync());
+        Assert.Equal(10, await db.Users.CountAsync());
         Assert.Equal(7, await db.CallAgents.CountAsync());
         Assert.Equal(3, await db.Projects.CountAsync());
         Assert.Equal(5, await db.Shifts.CountAsync());

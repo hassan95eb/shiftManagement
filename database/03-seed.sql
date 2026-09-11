@@ -36,6 +36,7 @@ DECLARE @pwd      nvarchar(256) = N'$2a$12$qlH6tb.BC9jdDlt2vk2D5uGNM6BJH9SSvlnIc
 -- --- Users -----------------------------------------------------------------
 INSERT INTO [Users] ([Username], [PasswordHash], [Role], [IsActive], [CreatedAtUtc])
 VALUES
+    (N'manager',   @pwd, N'Manager',    1, @seeded),
     (N'supervisor', @pwd, N'Supervisor', 1, @seeded),
     (N'rival',    @pwd, N'Supervisor', 1, @seeded),
     (N'ada',      @pwd, N'CallAgent',   1, @seeded),

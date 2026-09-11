@@ -40,12 +40,14 @@ public sealed class ApprovalService
 
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly IAccessScope _accessScope;
     private readonly IClock _clock;
 
-    public ApprovalService(IAppDbContext db, ICurrentUser currentUser, IClock clock)
+    public ApprovalService(IAppDbContext db, ICurrentUser currentUser, IAccessScope accessScope, IClock clock)
     {
         _db = db;
         _currentUser = currentUser;
+        _accessScope = accessScope;
         _clock = clock;
     }
 
@@ -58,16 +60,12 @@ public sealed class ApprovalService
     /// </summary>
     public async Task<ApplicationResponse> ApproveAsync(int applicationId, CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
-
         await using var transaction = await _db.BeginTransactionAsync(cancellationToken);
 
         // Tracked, with the shift, scoped to the caller's own projects.
-        var application = await _db.ShiftApplications
-            .Include(a => a.Shift)
-            .FirstOrDefaultAsync(
-                a => a.Id == applicationId && a.Shift.Project.SupervisorId == supervisorId,
-                cancellationToken)
+        var application = await _accessScope
+            .RestrictToOwnSupervisor(_db.ShiftApplications.Include(a => a.Shift), a => a.Shift.Project.SupervisorId)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken)
             ?? throw new NotFoundException("Application not found.");
 
         var shift = application.Shift;
@@ -158,12 +156,9 @@ public sealed class ApprovalService
     /// </summary>
     public async Task<ApplicationResponse> RejectAsync(int applicationId, CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
-
-        var application = await _db.ShiftApplications
-            .FirstOrDefaultAsync(
-                a => a.Id == applicationId && a.Shift.Project.SupervisorId == supervisorId,
-                cancellationToken)
+        var application = await _accessScope
+            .RestrictToOwnSupervisor(_db.ShiftApplications, a => a.Shift.Project.SupervisorId)
+            .FirstOrDefaultAsync(a => a.Id == applicationId, cancellationToken)
             ?? throw new NotFoundException("Application not found.");
 
         if (application.Status != ApplicationStatus.Pending)

@@ -40,4 +40,7 @@ public sealed class StubCurrentUser : ICurrentUser
 
     public static StubCurrentUser CallAgent(int userId, int callAgentId) =>
         new(userId, UserRole.CallAgent, supervisorId: null, callAgentId);
+
+    public static StubCurrentUser Manager(int userId) =>
+        new(userId, UserRole.Manager, supervisorId: null, callAgentId: null);
 }

@@ -21,12 +21,12 @@ namespace ShiftFlow.Application.Features.Recommendations;
 public sealed class RecommendationService
 {
     private readonly IAppDbContext _db;
-    private readonly ICurrentUser _currentUser;
+    private readonly IAccessScope _accessScope;
 
-    public RecommendationService(IAppDbContext db, ICurrentUser currentUser)
+    public RecommendationService(IAppDbContext db, IAccessScope accessScope)
     {
         _db = db;
-        _currentUser = currentUser;
+        _accessScope = accessScope;
     }
 
     /// <summary>
@@ -39,13 +39,9 @@ public sealed class RecommendationService
         int shiftId,
         CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
-
-        var shift = await _db.Shifts
-            .AsNoTracking()
-            .FirstOrDefaultAsync(
-                s => s.Id == shiftId && s.Project.SupervisorId == supervisorId,
-                cancellationToken)
+        var shift = await _accessScope
+            .RestrictToOwnSupervisor(_db.Shifts.AsNoTracking(), s => s.Project.SupervisorId)
+            .FirstOrDefaultAsync(s => s.Id == shiftId, cancellationToken)
             ?? throw new NotFoundException("Shift not found.");
 
         // The recommender only ever scores applicants, so an inner join to the

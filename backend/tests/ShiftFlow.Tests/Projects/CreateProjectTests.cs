@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.Projects;
 using ShiftFlow.Application.Features.Projects.Dtos;
@@ -11,17 +12,19 @@ namespace ShiftFlow.Tests.Projects;
 
 public class CreateProjectTests
 {
-    private static ProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock());
+    private static ProjectService ServiceForManager(SqliteTestContext ctx, int managerUserId) =>
+        new(ctx.Db, new AccessScope(StubCurrentUser.Manager(managerUserId)), new TestClock());
 
     [Fact]
-    public async Task Create_stores_the_project_under_the_calling_supervisor()
+    public async Task Create_stores_the_project_under_the_named_supervisor()
     {
         using var ctx = new SqliteTestContext();
         var acme = ctx.Db.AddSupervisor("Acme");
 
-        var created = await ServiceFor(ctx, acme.UserId, acme.Id)
-            .CreateAsync(new CreateProjectRequest { Name = "  Night Support  " }, CancellationToken.None);
+        var created = await ServiceForManager(ctx, managerUserId: 1)
+            .CreateAsync(
+                new CreateProjectRequest { Name = "  Night Support  ", SupervisorId = acme.Id },
+                CancellationToken.None);
 
         Assert.Equal(acme.Id, created.SupervisorId);
         Assert.Equal("Night Support", created.Name); // trimmed by the validator
@@ -37,11 +40,11 @@ public class CreateProjectTests
     {
         using var ctx = new SqliteTestContext();
         var acme = ctx.Db.AddSupervisor("Acme");
-        var service = ServiceFor(ctx, acme.UserId, acme.Id);
-        await service.CreateAsync(new CreateProjectRequest { Name = "Support" }, CancellationToken.None);
+        var service = ServiceForManager(ctx, managerUserId: 1);
+        await service.CreateAsync(new CreateProjectRequest { Name = "Support", SupervisorId = acme.Id }, CancellationToken.None);
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            service.CreateAsync(new CreateProjectRequest { Name = "Support" }, CancellationToken.None));
+            service.CreateAsync(new CreateProjectRequest { Name = "Support", SupervisorId = acme.Id }, CancellationToken.None));
 
         Assert.Equal(1, await ctx.NewContext().Projects.CountAsync());
     }
@@ -52,11 +55,10 @@ public class CreateProjectTests
         using var ctx = new SqliteTestContext();
         var acme = ctx.Db.AddSupervisor("Acme");
         var globex = ctx.Db.AddSupervisor("Globex");
+        var service = ServiceForManager(ctx, managerUserId: 1);
 
-        await ServiceFor(ctx, acme.UserId, acme.Id)
-            .CreateAsync(new CreateProjectRequest { Name = "Support" }, CancellationToken.None);
-        await ServiceFor(ctx, globex.UserId, globex.Id)
-            .CreateAsync(new CreateProjectRequest { Name = "Support" }, CancellationToken.None);
+        await service.CreateAsync(new CreateProjectRequest { Name = "Support", SupervisorId = acme.Id }, CancellationToken.None);
+        await service.CreateAsync(new CreateProjectRequest { Name = "Support", SupervisorId = globex.Id }, CancellationToken.None);
 
         Assert.Equal(2, await ctx.NewContext().Projects.CountAsync());
     }
@@ -68,7 +70,19 @@ public class CreateProjectTests
         var acme = ctx.Db.AddSupervisor("Acme");
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            ServiceFor(ctx, acme.UserId, acme.Id)
-                .CreateAsync(new CreateProjectRequest { Name = "   " }, CancellationToken.None));
+            ServiceForManager(ctx, managerUserId: 1)
+                .CreateAsync(new CreateProjectRequest { Name = "   ", SupervisorId = acme.Id }, CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task An_unknown_supervisor_id_is_a_validation_error()
+    {
+        using var ctx = new SqliteTestContext();
+
+        await Assert.ThrowsAsync<ValidationException>(() =>
+            ServiceForManager(ctx, managerUserId: 1)
+                .CreateAsync(new CreateProjectRequest { Name = "Support", SupervisorId = 9999 }, CancellationToken.None));
+
+        Assert.Equal(0, await ctx.NewContext().Projects.CountAsync());
     }
 }

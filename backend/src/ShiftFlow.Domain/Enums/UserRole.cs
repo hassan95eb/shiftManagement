@@ -6,6 +6,7 @@ namespace ShiftFlow.Domain.Enums;
 /// </summary>
 public enum UserRole
 {
+    Manager,
     Supervisor,
     CallAgent,
 }

@@ -43,12 +43,14 @@ public sealed class ApplicationService
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly IAccessScope _accessScope;
     private readonly IClock _clock;
 
-    public ApplicationService(IAppDbContext db, ICurrentUser currentUser, IClock clock)
+    public ApplicationService(IAppDbContext db, ICurrentUser currentUser, IAccessScope accessScope, IClock clock)
     {
         _db = db;
         _currentUser = currentUser;
+        _accessScope = accessScope;
         _clock = clock;
     }
 
@@ -141,10 +143,11 @@ public sealed class ApplicationService
     }
 
     /// <summary>
-    /// Application history for the caller. An <b>CallAgent</b> sees their own
-    /// applications; an <b>supervisor</b> sees the applications on shifts of their
-    /// own projects. Newest <see cref="ShiftApplication.AppliedAtUtc"/> first.
-    /// The optional <paramref name="filter"/> only narrows that set further.
+    /// Application history for the caller. A <b>CallAgent</b> sees their own
+    /// applications; a <b>Supervisor</b> sees the applications on shifts of their
+    /// own projects; a <b>Manager</b> sees every application. Newest
+    /// <see cref="ShiftApplication.AppliedAtUtc"/> first. The optional
+    /// <paramref name="filter"/> only narrows that set further.
     /// </summary>
     public async Task<IReadOnlyList<ApplicationResponse>> ListAsync(
         ApplicationListFilter filter,
@@ -152,9 +155,9 @@ public sealed class ApplicationService
     {
         var query = _db.ShiftApplications.AsNoTracking();
 
-        query = _currentUser.Role == UserRole.Supervisor
-            ? ScopeToSupervisor(query)
-            : ScopeToCallAgent(query);
+        query = _currentUser.Role == UserRole.CallAgent
+            ? ScopeToCallAgent(query)
+            : ScopeToSupervisor(query);
 
         if (filter.ShiftId is { } shiftId)
         {
@@ -179,11 +182,8 @@ public sealed class ApplicationService
         return query.Where(a => a.CallAgentId == callAgentId);
     }
 
-    private IQueryable<ShiftApplication> ScopeToSupervisor(IQueryable<ShiftApplication> query)
-    {
-        var supervisorId = _currentUser.RequireSupervisorId();
-        return query.Where(a => a.Shift.Project.SupervisorId == supervisorId);
-    }
+    private IQueryable<ShiftApplication> ScopeToSupervisor(IQueryable<ShiftApplication> query) =>
+        _accessScope.RestrictToOwnSupervisor(query, a => a.Shift.Project.SupervisorId);
 
     private static ApplicationResponse ToResponse(ShiftApplication a) =>
         new(

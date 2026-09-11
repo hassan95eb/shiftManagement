@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.CallAgents;
 using ShiftFlow.Tests.Support;
@@ -15,8 +16,11 @@ namespace ShiftFlow.Tests.CallAgents;
 /// </summary>
 public class AssignCallAgentToProjectTests
 {
-    private static CallAgentProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock());
+    private static CallAgentProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId)
+    {
+        var currentUser = StubCurrentUser.Supervisor(userId, supervisorId);
+        return new(ctx.Db, currentUser, new AccessScope(currentUser), new TestClock());
+    }
 
     [Fact]
     public async Task Assigning_to_your_own_project_creates_the_link()

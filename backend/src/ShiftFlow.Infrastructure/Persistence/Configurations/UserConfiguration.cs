@@ -10,7 +10,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.ToTable("Users", t =>
-            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Supervisor', 'CallAgent')"));
+            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Manager', 'Supervisor', 'CallAgent')"));
 
         builder.HasKey(u => u.Id);
 

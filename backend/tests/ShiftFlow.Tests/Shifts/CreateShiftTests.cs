@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.Shifts;
 using ShiftFlow.Application.Features.Shifts.Dtos;
@@ -23,7 +24,7 @@ public class CreateShiftTests
     private static DateTime At(int day, int hour) => new(2026, 7, day, hour, 0, 0, DateTimeKind.Utc);
 
     private static ShiftService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock(Now));
+        new(ctx.Db, new AccessScope(StubCurrentUser.Supervisor(userId, supervisorId)), new TestClock(Now));
 
     [Fact]
     public async Task Creating_a_shift_on_an_own_project_stores_it_Open()

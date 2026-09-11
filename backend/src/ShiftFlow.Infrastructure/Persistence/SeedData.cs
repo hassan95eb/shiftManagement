@@ -47,6 +47,9 @@ namespace ShiftFlow.Infrastructure.Persistence;
 /// </remarks>
 public sealed class SeedData
 {
+    /// <summary>Username of the seeded Manager. Password: <see cref="DemoPassword"/>.</summary>
+    public const string ManagerUsername = "manager";
+
     /// <summary>Username of the primary seeded supervisor. Password: <see cref="DemoPassword"/>.</summary>
     public const string SupervisorUsername = "supervisor";
 
@@ -79,6 +82,15 @@ public sealed class SeedData
         }
 
         var passwordHash = _passwordHasher.Hash(DemoPassword);
+
+        var manager = new User
+        {
+            Username = ManagerUsername,
+            PasswordHash = passwordHash,
+            Role = UserRole.Manager,
+            IsActive = true,
+            CreatedAtUtc = SeededAtUtc,
+        };
 
         User SupervisorUser(string username) => new()
         {
@@ -162,6 +174,7 @@ public sealed class SeedData
         var retailNov12 = new Shift { Project = retail, StartUtc = D(11, 12, 8), EndUtc = D(11, 12, 16), Status = ShiftStatus.Open, CreatedAtUtc = SeededAtUtc };
         var adaApprovedShift = new Shift { Project = retail, StartUtc = D(11, 12, 9), EndUtc = D(11, 12, 17), Status = ShiftStatus.Closed, CreatedAtUtc = SeededAtUtc };
 
+        _db.Users.Add(manager);
         _db.Supervisors.AddRange(northwind, southwind);
         _db.CallAgents.AddRange(ada, grace, lin, omar, nate, kite, rosa);
         _db.Projects.AddRange(retail, billing, overflow);
@@ -216,8 +229,9 @@ public sealed class SeedData
         await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Scenario seed inserted: supervisor accounts '{Supervisor}' and '{Rival}', seven CallAgents, "
-            + "three projects and five shifts. See README.md for the seed scenario map.",
+            "Scenario seed inserted: manager account '{Manager}', supervisor accounts '{Supervisor}' and "
+            + "'{Rival}', seven CallAgents, three projects and five shifts. See README.md for the seed scenario map.",
+            ManagerUsername,
             SupervisorUsername,
             RivalSupervisorUsername);
     }

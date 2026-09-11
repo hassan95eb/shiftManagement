@@ -13,8 +13,9 @@ namespace ShiftFlow.Application.Abstractions;
 /// unauthenticated or the principal is malformed; they never return <c>0</c>,
 /// <c>null</c> or a default role. Only read them from an endpoint that requires
 /// authentication. <see cref="SupervisorId"/> / <see cref="CallAgentId"/> are
-/// genuinely optional (one is always <c>null</c> for the other role) and also
-/// return <c>null</c> when unauthenticated.
+/// genuinely optional — for a Supervisor or a CallAgent, exactly one is set and
+/// the other is <c>null</c>; a Manager has no profile table, so both are
+/// <c>null</c> — and both also return <c>null</c> when unauthenticated.
 /// </remarks>
 public interface ICurrentUser
 {
