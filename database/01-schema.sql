@@ -10,7 +10,7 @@
 --
 -- Run 01-schema.sql and 02-indexes.sql in order, as a pair. 02-indexes.sql
 -- depends on the tables created here, and it also inserts the
--- __EFMigrationsHistory row that marks the InitialCreate migration as applied.
+-- __EFMigrationsHistory rows that mark each migration as applied.
 --
 -- The session must have SET QUOTED_IDENTIFIER ON (with sqlcmd, pass -I). The
 -- filtered index in 02-indexes.sql will not create without it.
