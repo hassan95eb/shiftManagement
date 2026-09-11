@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.CallAgents;
 using ShiftFlow.Application.Features.CallAgents.Dtos;
@@ -12,7 +13,7 @@ namespace ShiftFlow.Tests.CallAgents;
 public class CreateCallAgentTests
 {
     private static CallAgentService ServiceFor(SqliteTestContext ctx, StubCurrentUser caller) =>
-        new(ctx.Db, caller, new FakePasswordHasher(), new TestClock());
+        new(ctx.Db, caller, new FakePasswordHasher(), new TestClock(), Options.Create(new LeaveOptions()));
 
     private static CreateCallAgentRequest Request(string username = "temp-jane") => new()
     {
@@ -41,6 +42,7 @@ public class CreateCallAgentTests
         Assert.NotEqual("correct horse battery staple", user.PasswordHash);
         Assert.Equal(user.Id, callAgent.UserId);
         Assert.Equal("Jane Doe", callAgent.FullName);
+        Assert.Equal(26, callAgent.AnnualLeaveDays);
     }
 
     [Fact]

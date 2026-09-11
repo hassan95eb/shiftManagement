@@ -4,6 +4,7 @@ using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.AgentRequests.Dtos;
 using ShiftFlow.Application.Features.AgentRequests.Validators;
+using ShiftFlow.Application.Features.Ratings;
 using ShiftFlow.Domain.Entities;
 using ShiftFlow.Domain.Enums;
 using ShiftFlow.Domain.Exceptions;
@@ -17,7 +18,7 @@ public sealed class AgentRequestService
     private readonly IAccessScope _accessScope;
     private readonly IClock _clock;
     private readonly ILeaveYear _leaveYear;
-    private readonly AgentRequestOptions _options;
+    private readonly RatingOptions _options;
 
     public AgentRequestService(
         IAppDbContext db,
@@ -25,7 +26,7 @@ public sealed class AgentRequestService
         IAccessScope accessScope,
         IClock clock,
         ILeaveYear leaveYear,
-        IOptions<AgentRequestOptions> options)
+        IOptions<RatingOptions> options)
     {
         _db = db;
         _currentUser = currentUser;
@@ -230,10 +231,10 @@ public sealed class AgentRequestService
             var existingTicks = approved.Sum(r => OverlapTicks(r.StartUtc, r.EndUtc, month, nextMonth));
             var candidateTicks = OverlapTicks(candidate.StartUtc, candidate.EndUtc, month, nextMonth);
             var totalHours = (existingTicks + candidateTicks) / (decimal)TimeSpan.TicksPerHour;
-            if (totalHours > _options.MonthlyDowntimeHoursCap)
+            if (totalHours > _options.DowntimeCapHours)
             {
                 throw new BusinessRuleViolationException(
-                    $"Approved downtime cannot exceed {_options.MonthlyDowntimeHoursCap:0.##} hours per month.");
+                    $"Approved downtime cannot exceed {_options.DowntimeCapHours:0.##} hours per month.");
             }
 
             month = nextMonth;

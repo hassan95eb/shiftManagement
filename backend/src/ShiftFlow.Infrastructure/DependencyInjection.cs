@@ -5,6 +5,8 @@ using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Features.AgentRequests;
 using ShiftFlow.Application.Features.Attendance;
+using ShiftFlow.Application.Features.CallAgents;
+using ShiftFlow.Application.Features.Ratings;
 using ShiftFlow.Infrastructure.Identity;
 using ShiftFlow.Infrastructure.Persistence;
 
@@ -32,10 +34,16 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<ILeaveYear, PersianLeaveYear>();
 
-        services.AddOptions<AgentRequestOptions>()
-            .Bind(configuration.GetSection(AgentRequestOptions.SectionName))
-            .Validate(o => o.MonthlyDowntimeHoursCap > 0,
-                "AgentRequests:MonthlyDowntimeHoursCap must be greater than zero.")
+        services.AddOptions<RatingOptions>()
+            .Bind(configuration.GetSection(RatingOptions.SectionName))
+            .Validate(o => o.DowntimeCapHours > 0,
+                "Rating:DowntimeCapHours must be greater than zero.")
+            .ValidateOnStart();
+
+        services.AddOptions<LeaveOptions>()
+            .Bind(configuration.GetSection(LeaveOptions.SectionName))
+            .Validate(o => o.AnnualDaysDefault > 0,
+                "Leave:AnnualDaysDefault must be greater than zero.")
             .ValidateOnStart();
 
         services.AddOptions<AttendanceOptions>()

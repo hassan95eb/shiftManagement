@@ -4,6 +4,7 @@ using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.AgentRequests;
 using ShiftFlow.Application.Features.AgentRequests.Dtos;
+using ShiftFlow.Application.Features.Ratings;
 using ShiftFlow.Domain.Entities;
 using ShiftFlow.Domain.Enums;
 using ShiftFlow.Domain.Exceptions;
@@ -27,7 +28,7 @@ public class AgentRequestTests
             new AccessScope(user),
             new TestClock(now ?? Now),
             new PersianLeaveYear(),
-            Options.Create(new AgentRequestOptions { MonthlyDowntimeHoursCap = cap }));
+            Options.Create(new RatingOptions { DowntimeCapHours = cap }));
 
     [Fact]
     public void Tehran_0030_on_first_Farvardin_is_in_the_new_leave_year()
