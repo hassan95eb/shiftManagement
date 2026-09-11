@@ -138,7 +138,7 @@ public sealed class AgentRequestService
             throw new ConcurrencyConflictException(
                 "This request or shift was changed by another user. Reload it and try again.", exception);
         }
-        catch (DbUpdateException exception)
+        catch (DbUpdateException exception) when (request.RequestType == AgentRequestType.Leave)
         {
             await transaction.RollbackAsync(cancellationToken);
             throw new BusinessRuleViolationException(

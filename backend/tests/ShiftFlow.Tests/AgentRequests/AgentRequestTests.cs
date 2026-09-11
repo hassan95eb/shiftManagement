@@ -269,4 +269,23 @@ public class AgentRequestTests
         Assert.Equal(1, pending.RemainingLeaveDays);
         Assert.Equal("Pending", pending.Status);
     }
+
+    [Fact]
+    public async Task Downtime_database_failure_is_not_reported_as_duplicate_leave()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        var shift = ctx.Db.AddShift(
+            project.Id, Now.AddHours(-4), Now.AddHours(4), ShiftStatus.Assigned, agent.Id);
+        var request = ctx.Db.AddAgentRequest(
+            agent.Id, shift.Id, AgentRequestType.Downtime, AgentRequestStatus.Pending,
+            shift.StartUtc, shift.StartUtc.AddHours(1));
+
+        var invalidDecider = StubCurrentUser.Supervisor(999_999, supervisor.Id);
+
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            Service(ctx, invalidDecider).ApproveAsync(request.Id, CancellationToken.None));
+    }
 }
