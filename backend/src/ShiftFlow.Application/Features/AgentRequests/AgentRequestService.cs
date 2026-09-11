@@ -266,29 +266,38 @@ public sealed class AgentRequestService
 
     private async Task GuardDowntimeCapAsync(AgentRequest candidate, CancellationToken cancellationToken)
     {
+        var months = new List<LeaveMonthRange>();
+        var month = _leaveYear.ResolveMonth(candidate.StartUtc);
+        while (month.StartUtc < candidate.EndUtc)
+        {
+            months.Add(month);
+            month = _leaveYear.ResolveMonth(month.EndUtc);
+        }
+
+        var rangeStartUtc = months[0].StartUtc;
+        var rangeEndUtc = months[^1].EndUtc;
         var approved = await _db.AgentRequests
             .AsNoTracking()
             .Where(r => r.CallAgentId == candidate.CallAgentId
                         && r.RequestType == AgentRequestType.Downtime
-                        && r.Status == AgentRequestStatus.Approved)
+                        && r.Status == AgentRequestStatus.Approved
+                        && r.EndUtc > rangeStartUtc
+                        && r.StartUtc < rangeEndUtc)
             .Select(r => new { r.StartUtc, r.EndUtc })
             .ToListAsync(cancellationToken);
 
-        var month = _leaveYear.ResolveMonth(candidate.StartUtc);
-        while (month.StartUtc < candidate.EndUtc)
+        foreach (var currentMonth in months)
         {
             var existingTicks = approved.Sum(r =>
-                OverlapTicks(r.StartUtc, r.EndUtc, month.StartUtc, month.EndUtc));
+                OverlapTicks(r.StartUtc, r.EndUtc, currentMonth.StartUtc, currentMonth.EndUtc));
             var candidateTicks = OverlapTicks(
-                candidate.StartUtc, candidate.EndUtc, month.StartUtc, month.EndUtc);
+                candidate.StartUtc, candidate.EndUtc, currentMonth.StartUtc, currentMonth.EndUtc);
             var totalHours = (existingTicks + candidateTicks) / (decimal)TimeSpan.TicksPerHour;
             if (totalHours > _options.DowntimeCapHours)
             {
                 throw new BusinessRuleViolationException(
                     $"Approved downtime cannot exceed {_options.DowntimeCapHours:0.##} hours per month.");
             }
-
-            month = _leaveYear.ResolveMonth(month.EndUtc);
         }
     }
 
