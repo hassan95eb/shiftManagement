@@ -5,14 +5,14 @@ using ShiftFlow.Infrastructure.Persistence;
 
 namespace ShiftFlow.Tests.Support;
 
-/// <summary>Terse fixture builders for the Projects / Experts use-case tests.</summary>
+/// <summary>Terse fixture builders for the Projects / CallAgents use-case tests.</summary>
 public static class TestData
 {
     private static readonly DateTime Seeded = new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
-    public static Employer AddEmployer(this AppDbContext db, string name)
+    public static Supervisor AddSupervisor(this AppDbContext db, string name)
     {
-        var employer = new Employer
+        var supervisor = new Supervisor
         {
             Name = name,
             CreatedAtUtc = Seeded,
@@ -20,19 +20,19 @@ public static class TestData
             {
                 Username = name.ToLowerInvariant() + "-admin",
                 PasswordHash = "x",
-                Role = UserRole.Employer,
+                Role = UserRole.Supervisor,
                 IsActive = true,
                 CreatedAtUtc = Seeded,
             },
         };
-        db.Employers.Add(employer);
+        db.Supervisors.Add(supervisor);
         db.SaveChanges();
-        return employer;
+        return supervisor;
     }
 
-    public static Expert AddExpert(this AppDbContext db, string fullName)
+    public static CallAgent AddCallAgent(this AppDbContext db, string fullName)
     {
-        var expert = new Expert
+        var callAgent = new CallAgent
         {
             FullName = fullName,
             IsActive = true,
@@ -41,21 +41,21 @@ public static class TestData
             {
                 Username = fullName.ToLowerInvariant().Replace(" ", "-"),
                 PasswordHash = "x",
-                Role = UserRole.Expert,
+                Role = UserRole.CallAgent,
                 IsActive = true,
                 CreatedAtUtc = Seeded,
             },
         };
-        db.Experts.Add(expert);
+        db.CallAgents.Add(callAgent);
         db.SaveChanges();
-        return expert;
+        return callAgent;
     }
 
-    public static Project AddProject(this AppDbContext db, int employerId, string name)
+    public static Project AddProject(this AppDbContext db, int supervisorId, string name)
     {
         var project = new Project
         {
-            EmployerId = employerId,
+            SupervisorId = supervisorId,
             Name = name,
             IsActive = true,
             CreatedAtUtc = Seeded,
@@ -96,13 +96,13 @@ public static class TestData
 
     public static Availability AddAvailability(
         this AppDbContext db,
-        int expertId,
+        int callAgentId,
         DateTime startUtc,
         DateTime endUtc)
     {
         var window = new Availability
         {
-            ExpertId = expertId,
+            CallAgentId = callAgentId,
             StartUtc = startUtc,
             EndUtc = endUtc,
             CreatedAtUtc = Seeded,
@@ -112,15 +112,15 @@ public static class TestData
         return window;
     }
 
-    public static ExpertProject Assign(this AppDbContext db, int expertId, int projectId)
+    public static CallAgentProject Assign(this AppDbContext db, int callAgentId, int projectId)
     {
-        var link = new ExpertProject
+        var link = new CallAgentProject
         {
-            ExpertId = expertId,
+            CallAgentId = callAgentId,
             ProjectId = projectId,
             AssignedAtUtc = Seeded,
         };
-        db.ExpertProjects.Add(link);
+        db.CallAgentProjects.Add(link);
         db.SaveChanges();
         return link;
     }
@@ -128,14 +128,14 @@ public static class TestData
     public static ShiftApplication AddApplication(
         this AppDbContext db,
         int shiftId,
-        int expertId,
+        int callAgentId,
         ApplicationStatus status,
         DateTime? appliedAtUtc = null)
     {
         var application = new ShiftApplication
         {
             ShiftId = shiftId,
-            ExpertId = expertId,
+            CallAgentId = callAgentId,
             Status = status,
             AppliedAtUtc = appliedAtUtc ?? new DateTime(2026, 6, 15, 12, 0, 0, DateTimeKind.Utc),
         };
@@ -147,7 +147,7 @@ public static class TestData
     public static Recommendation AddRecommendation(
         this AppDbContext db,
         int shiftId,
-        int expertId,
+        int callAgentId,
         decimal score,
         string? reason = null,
         DateTime? computedAtUtc = null)
@@ -155,7 +155,7 @@ public static class TestData
         var recommendation = new Recommendation
         {
             ShiftId = shiftId,
-            ExpertId = expertId,
+            CallAgentId = callAgentId,
             Score = score,
             Reason = reason ?? $"Total {score}",
             ComputedAtUtc = computedAtUtc ?? new DateTime(2026, 6, 20, 0, 0, 0, DateTimeKind.Utc),

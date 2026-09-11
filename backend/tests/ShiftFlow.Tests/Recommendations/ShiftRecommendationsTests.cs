@@ -23,21 +23,21 @@ public class ShiftRecommendationsTests
 
     private static DateTime AppliedOn(int day) => new(2026, 6, day, 12, 0, 0, DateTimeKind.Utc);
 
-    private static RecommendationService ServiceFor(SqliteTestContext ctx, int userId, int employerId) =>
-        new(ctx.Db, StubCurrentUser.Employer(userId, employerId));
+    private static RecommendationService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
+        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId));
 
     [Fact]
     public async Task Ranking_is_score_desc_then_fewer_approved_hours_then_earlier_application()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var target = ctx.Db.AddShift(project.Id, At(8), At(16));
 
-        var top = ctx.Db.AddExpert("Top Scorer");
-        var earlyBird = ctx.Db.AddExpert("Early Bird");
-        var lightLoad = ctx.Db.AddExpert("Light Load");
-        var heavyLoad = ctx.Db.AddExpert("Heavy Load");
+        var top = ctx.Db.AddCallAgent("Top Scorer");
+        var earlyBird = ctx.Db.AddCallAgent("Early Bird");
+        var lightLoad = ctx.Db.AddCallAgent("Light Load");
+        var heavyLoad = ctx.Db.AddCallAgent("Heavy Load");
         foreach (var e in new[] { top, earlyBird, lightLoad, heavyLoad })
         {
             ctx.Db.Assign(e.Id, project.Id);
@@ -59,24 +59,24 @@ public class ShiftRecommendationsTests
         ctx.Db.AddRecommendation(target.Id, lightLoad.Id, 75.00m);
         ctx.Db.AddRecommendation(target.Id, heavyLoad.Id, 75.00m);
 
-        var ranking = await ServiceFor(ctx, employer.UserId, employer.Id)
+        var ranking = await ServiceFor(ctx, supervisor.UserId, supervisor.Id)
             .ListForShiftAsync(target.Id, CancellationToken.None);
 
         Assert.Equal(
             new[] { top.Id, earlyBird.Id, lightLoad.Id, heavyLoad.Id },
-            ranking.Select(r => r.ExpertId).ToArray());
+            ranking.Select(r => r.CallAgentId).ToArray());
     }
 
     [Fact]
     public async Task Approved_hours_outside_the_shifts_month_do_not_count_toward_the_tie_break()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var target = ctx.Db.AddShift(project.Id, At(8), At(16)); // July 2026
 
-        var june = ctx.Db.AddExpert("June Load");
-        var clean = ctx.Db.AddExpert("Clean Slate");
+        var june = ctx.Db.AddCallAgent("June Load");
+        var clean = ctx.Db.AddCallAgent("Clean Slate");
         ctx.Db.Assign(june.Id, project.Id);
         ctx.Db.Assign(clean.Id, project.Id);
 
@@ -93,36 +93,36 @@ public class ShiftRecommendationsTests
         ctx.Db.AddRecommendation(target.Id, june.Id, 80.00m);
         ctx.Db.AddRecommendation(target.Id, clean.Id, 80.00m);
 
-        var ranking = await ServiceFor(ctx, employer.UserId, employer.Id)
+        var ranking = await ServiceFor(ctx, supervisor.UserId, supervisor.Id)
             .ListForShiftAsync(target.Id, CancellationToken.None);
 
         // Equal score, equal (zero) July hours, so the earlier application wins.
-        Assert.Equal(new[] { june.Id, clean.Id }, ranking.Select(r => r.ExpertId).ToArray());
+        Assert.Equal(new[] { june.Id, clean.Id }, ranking.Select(r => r.CallAgentId).ToArray());
     }
 
     [Fact]
     public async Task A_shift_with_no_recommendations_yet_returns_an_empty_list()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
 
-        var ranking = await ServiceFor(ctx, employer.UserId, employer.Id)
+        var ranking = await ServiceFor(ctx, supervisor.UserId, supervisor.Id)
             .ListForShiftAsync(shift.Id, CancellationToken.None);
 
         Assert.Empty(ranking);
     }
 
     [Fact]
-    public async Task Another_employers_shift_is_NotFound()
+    public async Task Another_supervisors_shift_is_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
         var shift = ctx.Db.AddShift(globexProject.Id, At(8), At(16));
-        var jane = ctx.Db.AddExpert("Jane Doe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
         ctx.Db.Assign(jane.Id, globexProject.Id);
         ctx.Db.AddApplication(shift.Id, jane.Id, ApplicationStatus.Pending);
         ctx.Db.AddRecommendation(shift.Id, jane.Id, 80.00m);

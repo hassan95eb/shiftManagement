@@ -6,7 +6,7 @@ passes them through Compose)::
 
     python recommendation.py
 
-For every ``Open`` shift it ranks that shift's *applicants* -- not every expert
+For every ``Open`` shift it ranks that shift's *applicants* -- not every call_agent
 in the system. For each applicant who would still pass the apply rules
 (CLAUDE.md #5: project membership, the whole shift inside one availability
 window, no overlap with an already-approved shift) it gathers the three formula
@@ -92,30 +92,30 @@ def run(db: RecommenderDb, now: datetime) -> int:
         scored: list[ScoredRow] = []
         skipped: list[tuple[int, str]] = []
 
-        for expert_id in db.pending_applicant_expert_ids(shift.id):
-            if not db.is_project_member(expert_id, shift.id):
-                skipped.append((expert_id, "not a member of the shift's project"))
+        for call_agent_id in db.pending_applicant_call_agent_ids(shift.id):
+            if not db.is_project_member(call_agent_id, shift.id):
+                skipped.append((call_agent_id, "not a member of the shift's project"))
                 continue
 
-            window_hours = db.covering_window_hours(expert_id, shift)
+            window_hours = db.covering_window_hours(call_agent_id, shift)
             if window_hours is None:
-                skipped.append((expert_id, "no availability window covers the shift"))
+                skipped.append((call_agent_id, "no availability window covers the shift"))
                 continue
 
-            spans = db.approved_shift_spans(expert_id)
+            spans = db.approved_shift_spans(call_agent_id)
             if _overlaps_any_approved(spans, shift.start_utc, shift.end_utc):
-                skipped.append((expert_id, "overlaps an already-approved shift"))
+                skipped.append((call_agent_id, "overlaps an already-approved shift"))
                 continue
 
             breakdown = score(
-                previous_month_rating=db.previous_month_rating(expert_id, shift),
+                previous_month_rating=db.previous_month_rating(call_agent_id, shift),
                 approved_hours=_approved_hours_in_month(spans, month_start, month_end),
                 shift_hours=shift.hours,
                 covering_window_hours=window_hours,
                 config=scoring_config,
             )
             scored.append(
-                ScoredRow(shift.id, expert_id, breakdown.final_score, breakdown.reason)
+                ScoredRow(shift.id, call_agent_id, breakdown.final_score, breakdown.reason)
             )
 
         stats = db.merge_shift(shift.id, scored, computed_at)
@@ -126,14 +126,14 @@ def run(db: RecommenderDb, now: datetime) -> int:
         )
 
         ranked = sorted(scored, key=lambda r: r.score, reverse=True)
-        detail = ", ".join(f"expert {r.expert_id} {r.score}" for r in ranked) or "none"
+        detail = ", ".join(f"call_agent {r.call_agent_id} {r.score}" for r in ranked) or "none"
         print(
             f"  shift {shift.id} ({shift.start_utc:%Y-%m-%d %H:%M}-{shift.end_utc:%H:%M}): "
             f"scored {len(scored)} [{detail}]; "
             f"+{stats.inserted} ~{stats.updated} -{stats.deleted}"
         )
-        for expert_id, why in skipped:
-            print(f"      skipped expert {expert_id}: {why}")
+        for call_agent_id, why in skipped:
+            print(f"      skipped call_agent {call_agent_id}: {why}")
 
     print(
         f"Done. Recommendations inserted {grand.inserted}, updated {grand.updated}, "

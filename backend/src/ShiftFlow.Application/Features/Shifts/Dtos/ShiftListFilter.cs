@@ -3,7 +3,7 @@ using ShiftFlow.Domain.Enums;
 namespace ShiftFlow.Application.Features.Shifts.Dtos;
 
 /// <summary>
-/// Optional filters for the employer shift list (<c>GET /api/shifts</c>), bound
+/// Optional filters for the supervisor shift list (<c>GET /api/shifts</c>), bound
 /// from the query string. Every field is nullable; a null field is simply not
 /// applied. <see cref="FromUtc"/> / <see cref="ToUtc"/> both bound
 /// <see cref="ShiftFlow.Domain.Entities.Shift.StartUtc"/> inclusively.

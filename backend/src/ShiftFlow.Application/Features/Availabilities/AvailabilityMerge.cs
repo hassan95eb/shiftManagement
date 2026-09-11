@@ -1,7 +1,7 @@
 namespace ShiftFlow.Application.Features.Availabilities;
 
 /// <summary>
-/// Normalizes a set of availability windows for one expert so the stored set
+/// Normalizes a set of availability windows for one CallAgent so the stored set
 /// never holds two windows that overlap or touch (docs/01-erd-and-schema.md
 /// §3-6, CLAUDE.md §5).
 /// </summary>

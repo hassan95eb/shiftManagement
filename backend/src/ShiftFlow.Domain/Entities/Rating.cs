@@ -1,16 +1,16 @@
 namespace ShiftFlow.Domain.Entities;
 
 /// <summary>
-/// A monthly performance rating for an expert. Seed-only — no API or UI writes
-/// it; an expert with no row scores as 3.0 in the recommendation
-/// (docs/01-erd-and-schema.md §3-9, CLAUDE.md §5). Unique on (ExpertId, Period).
+/// A monthly performance rating for a CallAgent. Seed-only — no API or UI writes
+/// it; a CallAgent with no row scores as 3.0 in the recommendation
+/// (docs/01-erd-and-schema.md §3-9, CLAUDE.md §5). Unique on (CallAgentId, Period).
 /// </summary>
-public class ExpertRating
+public class Rating
 {
     public int Id { get; set; }
 
-    // FK -> Experts. CASCADE on delete.
-    public int ExpertId { get; set; }
+    // FK -> CallAgents. CASCADE on delete.
+    public int CallAgentId { get; set; }
 
     // Month key in 'yyyy-MM' format, e.g. "2026-08" (CHAR(7)).
     public string Period { get; set; } = null!;
@@ -21,5 +21,5 @@ public class ExpertRating
     public DateTime CreatedAtUtc { get; set; }
 
     // Navigation
-    public Expert Expert { get; set; } = null!;
+    public CallAgent CallAgent { get; set; } = null!;
 }

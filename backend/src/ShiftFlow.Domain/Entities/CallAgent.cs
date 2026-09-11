@@ -5,7 +5,7 @@ namespace ShiftFlow.Domain.Entities;
 /// (docs/01-erd-and-schema.md §3-3). Every FK pointing back here is NO ACTION
 /// on delete (docs/01 §4).
 /// </summary>
-public class Expert
+public class CallAgent
 {
     public int Id { get; set; }
 
@@ -21,11 +21,11 @@ public class Expert
     // Navigation
     public User User { get; set; } = null!;
 
-    public ICollection<ExpertProject> ExpertProjects { get; } = new List<ExpertProject>();
+    public ICollection<CallAgentProject> CallAgentProjects { get; } = new List<CallAgentProject>();
 
     public ICollection<Availability> Availabilities { get; } = new List<Availability>();
 
-    public ICollection<ExpertRating> ExpertRatings { get; } = new List<ExpertRating>();
+    public ICollection<Rating> Ratings { get; } = new List<Rating>();
 
     public ICollection<ShiftApplication> ShiftApplications { get; } = new List<ShiftApplication>();
 

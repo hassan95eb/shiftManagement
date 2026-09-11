@@ -24,20 +24,20 @@ public class ApproveApplication_SuccessTests
 
     private static DateTime On(int day) => new(2026, 6, day, 12, 0, 0, DateTimeKind.Utc);
 
-    private static ApprovalService ServiceFor(SqliteTestContext ctx, Employer employer) =>
-        new(ctx.Db, StubCurrentUser.Employer(employer.UserId, employer.Id), new TestClock(Now));
+    private static ApprovalService ServiceFor(SqliteTestContext ctx, Supervisor supervisor) =>
+        new(ctx.Db, StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id), new TestClock(Now));
 
     [Fact]
     public async Task Approving_closes_the_shift_and_rejects_the_other_pending_applications()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
 
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
-        var nora = ctx.Db.AddExpert("Nora Fox");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
+        var nora = ctx.Db.AddCallAgent("Nora Fox");
         ctx.Db.Assign(jane.Id, project.Id);
         ctx.Db.Assign(mike.Id, project.Id);
         ctx.Db.Assign(nora.Id, project.Id);
@@ -46,10 +46,10 @@ public class ApproveApplication_SuccessTests
         var mikeApp = ctx.Db.AddApplication(shift.Id, mike.Id, ApplicationStatus.Pending, On(2));
         var noraApp = ctx.Db.AddApplication(shift.Id, nora.Id, ApplicationStatus.Pending, On(3));
 
-        var result = await ServiceFor(ctx, employer).ApproveAsync(janeApp.Id, CancellationToken.None);
+        var result = await ServiceFor(ctx, supervisor).ApproveAsync(janeApp.Id, CancellationToken.None);
 
         Assert.Equal("Approved", result.Status);
-        Assert.Equal(employer.UserId, result.DecidedByUserId);
+        Assert.Equal(supervisor.UserId, result.DecidedByUserId);
         Assert.Equal(Now, result.DecidedAtUtc);
         Assert.Null(result.DecisionNote); // the approved row carries no "filled" note
 
@@ -62,7 +62,7 @@ public class ApproveApplication_SuccessTests
         {
             var sibling = await db.ShiftApplications.SingleAsync(a => a.Id == siblingId);
             Assert.Equal(ApplicationStatus.Rejected, sibling.Status);
-            Assert.Equal(employer.UserId, sibling.DecidedByUserId);
+            Assert.Equal(supervisor.UserId, sibling.DecidedByUserId);
             Assert.Equal(Now, sibling.DecidedAtUtc);
             Assert.False(string.IsNullOrWhiteSpace(sibling.DecisionNote));
         }
@@ -72,19 +72,19 @@ public class ApproveApplication_SuccessTests
     public async Task An_already_rejected_sibling_is_not_touched_by_the_approval()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
 
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         ctx.Db.Assign(jane.Id, project.Id);
         ctx.Db.Assign(mike.Id, project.Id);
 
         var janeApp = ctx.Db.AddApplication(shift.Id, jane.Id, ApplicationStatus.Pending, On(1));
         var mikeApp = ctx.Db.AddApplication(shift.Id, mike.Id, ApplicationStatus.Rejected, On(2));
 
-        await ServiceFor(ctx, employer).ApproveAsync(janeApp.Id, CancellationToken.None);
+        await ServiceFor(ctx, supervisor).ApproveAsync(janeApp.Id, CancellationToken.None);
 
         var stored = await ctx.NewContext().ShiftApplications.SingleAsync(a => a.Id == mikeApp.Id);
         Assert.Equal(ApplicationStatus.Rejected, stored.Status);
@@ -97,14 +97,14 @@ public class ApproveApplication_SuccessTests
     public async Task A_lone_applicant_is_approved_and_the_shift_closes_with_no_rejections()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
-        var jane = ctx.Db.AddExpert("Jane Doe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
         ctx.Db.Assign(jane.Id, project.Id);
         var janeApp = ctx.Db.AddApplication(shift.Id, jane.Id, ApplicationStatus.Pending, On(1));
 
-        await ServiceFor(ctx, employer).ApproveAsync(janeApp.Id, CancellationToken.None);
+        await ServiceFor(ctx, supervisor).ApproveAsync(janeApp.Id, CancellationToken.None);
 
         var db = ctx.NewContext();
         Assert.Equal(ShiftStatus.Closed, (await db.Shifts.SingleAsync()).Status);

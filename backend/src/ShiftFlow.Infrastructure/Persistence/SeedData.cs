@@ -13,7 +13,7 @@ namespace ShiftFlow.Infrastructure.Persistence;
 /// approval (with its sibling rejection) and a shift with several pending
 /// applicants and their recommendation rows.
 /// <para>
-/// Idempotent: it checks for the <see cref="EmployerUsername"/> account and
+/// Idempotent: it checks for the <see cref="SupervisorUsername"/> account and
 /// returns without writing if the seed has already run, so a second startup — or
 /// a second call in a test — changes nothing. Every timestamp is a fixed
 /// absolute value, so the data set does not depend on the wall clock.
@@ -28,7 +28,7 @@ namespace ShiftFlow.Infrastructure.Persistence;
 /// <remarks>
 /// The scenario, by row (see <c>README.md</c> -> Database Design -> Seed scenario map):
 /// <list type="bullet">
-///   <item><b>employer</b> / <b>rival</b> — two employers; <c>rival</c> owns a
+///   <item><b>supervisor</b> / <b>rival</b> — two supervisors; <c>rival</c> owns a
 ///     separate project so the ownership boundary (CLAUDE.md §7) is visible.</item>
 ///   <item><b>Retail Support</b> shift on 2026-11-10 08:00–16:00 (Open) — the
 ///     applicant pool: <c>ada</c>, <c>nate</c> and <c>kite</c> apply, each with a
@@ -47,11 +47,11 @@ namespace ShiftFlow.Infrastructure.Persistence;
 /// </remarks>
 public sealed class SeedData
 {
-    /// <summary>Username of the primary seeded employer. Password: <see cref="DemoPassword"/>.</summary>
-    public const string EmployerUsername = "employer";
+    /// <summary>Username of the primary seeded supervisor. Password: <see cref="DemoPassword"/>.</summary>
+    public const string SupervisorUsername = "supervisor";
 
-    /// <summary>Username of the second seeded employer, owner of a separate project.</summary>
-    public const string RivalEmployerUsername = "rival";
+    /// <summary>Username of the second seeded supervisor, owner of a separate project.</summary>
+    public const string RivalSupervisorUsername = "rival";
 
     /// <summary>Shared password for every seeded account. Development data only, never a real secret.</summary>
     public const string DemoPassword = "Demo!Pass1";
@@ -72,7 +72,7 @@ public sealed class SeedData
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        if (await _db.Users.AnyAsync(u => u.Username == EmployerUsername, cancellationToken))
+        if (await _db.Users.AnyAsync(u => u.Username == SupervisorUsername, cancellationToken))
         {
             _logger.LogInformation("Scenario seed already present; nothing inserted.");
             return;
@@ -80,16 +80,16 @@ public sealed class SeedData
 
         var passwordHash = _passwordHasher.Hash(DemoPassword);
 
-        User EmployerUser(string username) => new()
+        User SupervisorUser(string username) => new()
         {
             Username = username,
             PasswordHash = passwordHash,
-            Role = UserRole.Employer,
+            Role = UserRole.Supervisor,
             IsActive = true,
             CreatedAtUtc = SeededAtUtc,
         };
 
-        Expert MakeExpert(string username, string fullName) => new()
+        CallAgent MakeCallAgent(string username, string fullName) => new()
         {
             FullName = fullName,
             IsActive = true,
@@ -98,7 +98,7 @@ public sealed class SeedData
             {
                 Username = username,
                 PasswordHash = passwordHash,
-                Role = UserRole.Expert,
+                Role = UserRole.CallAgent,
                 IsActive = true,
                 CreatedAtUtc = SeededAtUtc,
             },
@@ -107,49 +107,49 @@ public sealed class SeedData
         static Availability Window(DateTime startUtc, DateTime endUtc) =>
             new() { StartUtc = startUtc, EndUtc = endUtc, CreatedAtUtc = SeededAtUtc };
 
-        static ExpertRating Rating(string period, decimal score) =>
+        static Rating Rating(string period, decimal score) =>
             new() { Period = period, Score = score, CreatedAtUtc = SeededAtUtc };
 
-        // --- Employers -------------------------------------------------------
-        var northwind = new Employer { Name = "Northwind Support", CreatedAtUtc = SeededAtUtc, User = EmployerUser(EmployerUsername) };
-        var southwind = new Employer { Name = "Southwind Staffing", CreatedAtUtc = SeededAtUtc, User = EmployerUser(RivalEmployerUsername) };
+        // --- Supervisors -------------------------------------------------------
+        var northwind = new Supervisor { Name = "Northwind Support", CreatedAtUtc = SeededAtUtc, User = SupervisorUser(SupervisorUsername) };
+        var southwind = new Supervisor { Name = "Southwind Staffing", CreatedAtUtc = SeededAtUtc, User = SupervisorUser(RivalSupervisorUsername) };
 
-        // --- Experts, availability and ratings -----------------------------
+        // --- CallAgents, availability and ratings -----------------------------
         // The month before the applicant-pool shift (2026-11) is 2026-10; those
         // ratings feed RatingScore. kite has no row on purpose — it scores 3.0.
-        var ada = MakeExpert("ada", "Ada Lovelace");
+        var ada = MakeCallAgent("ada", "Ada Lovelace");
         ada.Availabilities.Add(Window(D(11, 10, 6), D(11, 10, 22)));
         ada.Availabilities.Add(Window(D(11, 12, 6), D(11, 12, 22)));
-        ada.ExpertRatings.Add(Rating("2026-10", 4.6m));
-        ada.ExpertRatings.Add(Rating("2026-09", 4.2m));
+        ada.Ratings.Add(Rating("2026-10", 4.6m));
+        ada.Ratings.Add(Rating("2026-09", 4.2m));
 
-        var grace = MakeExpert("grace", "Grace Hopper");
+        var grace = MakeCallAgent("grace", "Grace Hopper");
         grace.Availabilities.Add(Window(D(11, 10, 6), D(11, 10, 14))); // ends before the 16:00 shift
-        grace.ExpertRatings.Add(Rating("2026-10", 3.9m));
+        grace.Ratings.Add(Rating("2026-10", 3.9m));
 
-        var lin = MakeExpert("lin", "Lin Yao");
+        var lin = MakeCallAgent("lin", "Lin Yao");
         lin.Availabilities.Add(Window(D(11, 10, 8), D(11, 10, 16))); // exact cover
-        lin.ExpertRatings.Add(Rating("2026-10", 5.0m));
+        lin.Ratings.Add(Rating("2026-10", 5.0m));
 
-        var omar = MakeExpert("omar", "Omar Khayyam");
+        var omar = MakeCallAgent("omar", "Omar Khayyam");
         omar.Availabilities.Add(Window(D(11, 11, 7), D(11, 11, 17))); // covers the Closed shift only
-        omar.ExpertRatings.Add(Rating("2026-10", 2.4m));
+        omar.Ratings.Add(Rating("2026-10", 2.4m));
 
-        var nate = MakeExpert("nate", "Nate Silver");
+        var nate = MakeCallAgent("nate", "Nate Silver");
         nate.Availabilities.Add(Window(D(11, 10, 6), D(11, 10, 20)));
-        nate.ExpertRatings.Add(Rating("2026-10", 3.1m));
+        nate.Ratings.Add(Rating("2026-10", 3.1m));
 
-        var kite = MakeExpert("kite", "Kite Tanaka");
+        var kite = MakeCallAgent("kite", "Kite Tanaka");
         kite.Availabilities.Add(Window(D(11, 10, 6), D(11, 10, 20)));
         kite.Availabilities.Add(Window(D(11, 11, 6), D(11, 11, 18)));
 
-        var rosa = MakeExpert("rosa", "Rosa Parks");
+        var rosa = MakeCallAgent("rosa", "Rosa Parks");
         rosa.Availabilities.Add(Window(D(11, 10, 6), D(11, 10, 22)));
 
         // --- Projects and assignments -------------------------------------
-        var retail = new Project { Name = "Retail Support", IsActive = true, CreatedAtUtc = SeededAtUtc, Employer = northwind };
-        var billing = new Project { Name = "Billing Support", IsActive = true, CreatedAtUtc = SeededAtUtc, Employer = northwind };
-        var overflow = new Project { Name = "Overflow Desk", IsActive = true, CreatedAtUtc = SeededAtUtc, Employer = southwind };
+        var retail = new Project { Name = "Retail Support", IsActive = true, CreatedAtUtc = SeededAtUtc, Supervisor = northwind };
+        var billing = new Project { Name = "Billing Support", IsActive = true, CreatedAtUtc = SeededAtUtc, Supervisor = northwind };
+        var overflow = new Project { Name = "Overflow Desk", IsActive = true, CreatedAtUtc = SeededAtUtc, Supervisor = southwind };
 
         Assign(retail, ada, grace, lin, omar, nate, kite);
         Assign(billing, ada);
@@ -162,8 +162,8 @@ public sealed class SeedData
         var retailNov12 = new Shift { Project = retail, StartUtc = D(11, 12, 8), EndUtc = D(11, 12, 16), Status = ShiftStatus.Open, CreatedAtUtc = SeededAtUtc };
         var adaApprovedShift = new Shift { Project = retail, StartUtc = D(11, 12, 9), EndUtc = D(11, 12, 17), Status = ShiftStatus.Closed, CreatedAtUtc = SeededAtUtc };
 
-        _db.Employers.AddRange(northwind, southwind);
-        _db.Experts.AddRange(ada, grace, lin, omar, nate, kite, rosa);
+        _db.Supervisors.AddRange(northwind, southwind);
+        _db.CallAgents.AddRange(ada, grace, lin, omar, nate, kite, rosa);
         _db.Projects.AddRange(retail, billing, overflow);
         _db.Shifts.AddRange(retailPool, billingOpen, retailClosed, retailNov12, adaApprovedShift);
 
@@ -176,20 +176,20 @@ public sealed class SeedData
         // The completed decision on the Closed Retail shift: omar approved, kite
         // rejected with the exact note the approval cascade writes.
         _db.ShiftApplications.Add(Decided(retailClosed, omar, ApplicationStatus.Approved, D(10, 28, 9), northwind.User, D(10, 30, 12), decisionNote: null));
-        _db.ShiftApplications.Add(Decided(retailClosed, kite, ApplicationStatus.Rejected, D(10, 28, 10), northwind.User, D(10, 30, 12), "Shift filled by another expert."));
+        _db.ShiftApplications.Add(Decided(retailClosed, kite, ApplicationStatus.Rejected, D(10, 28, 10), northwind.User, D(10, 30, 12), "Shift filled by another CallAgent."));
 
         // ada already holds an approved 09:00–17:00 shift on 2026-11-12.
         _db.ShiftApplications.Add(Decided(adaApprovedShift, ada, ApplicationStatus.Approved, D(10, 29, 9), northwind.User, D(11, 1, 8), decisionNote: null));
 
         // --- Recommendations ---------------------------------------------
         // Read-only rows the Python recommender would produce; seeded so the
-        // employer ranking endpoint returns a meaningful list before that script
+        // supervisor ranking endpoint returns a meaningful list before that script
         // exists. Numbers follow the CLAUDE.md §5 formula for the 8h Retail shift.
         var computedAtUtc = D(11, 3, 6);
         _db.Recommendations.Add(new Recommendation
         {
             Shift = retailPool,
-            Expert = ada,
+            CallAgent = ada,
             Score = 76.10m,
             Reason = "Rating 4.6/5 -> 27.6 | Workload 8h -> 28.5 | Availability 8/16h -> 20.0 | Total 76.1",
             ComputedAtUtc = computedAtUtc,
@@ -197,7 +197,7 @@ public sealed class SeedData
         _db.Recommendations.Add(new Recommendation
         {
             Shift = retailPool,
-            Expert = nate,
+            CallAgent = nate,
             Score = 71.50m,
             Reason = "Rating 3.1/5 -> 18.6 | Workload 0h -> 30.0 | Availability 8/14h -> 22.9 | Total 71.5",
             ComputedAtUtc = computedAtUtc,
@@ -205,7 +205,7 @@ public sealed class SeedData
         _db.Recommendations.Add(new Recommendation
         {
             Shift = retailPool,
-            Expert = kite,
+            CallAgent = kite,
             Score = 70.90m,
             Reason = "Rating default 3.0/5 -> 18.0 | Workload 0h -> 30.0 | Availability 8/14h -> 22.9 | Total 70.9",
             ComputedAtUtc = computedAtUtc,
@@ -216,34 +216,34 @@ public sealed class SeedData
         await _db.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation(
-            "Scenario seed inserted: employer accounts '{Employer}' and '{Rival}', seven experts, "
+            "Scenario seed inserted: supervisor accounts '{Supervisor}' and '{Rival}', seven CallAgents, "
             + "three projects and five shifts. See README.md for the seed scenario map.",
-            EmployerUsername,
-            RivalEmployerUsername);
+            SupervisorUsername,
+            RivalSupervisorUsername);
     }
 
     /// <summary>2026 UTC date at a whole hour, so every value round-trips through <c>datetime2(0)</c>.</summary>
     private static DateTime D(int month, int day, int hour) => new(2026, month, day, hour, 0, 0, DateTimeKind.Utc);
 
-    private static void Assign(Project project, params Expert[] experts)
+    private static void Assign(Project project, params CallAgent[] callAgents)
     {
-        foreach (var expert in experts)
+        foreach (var callAgent in callAgents)
         {
-            project.ExpertProjects.Add(new ExpertProject { Expert = expert, AssignedAtUtc = SeededAtUtc });
+            project.CallAgentProjects.Add(new CallAgentProject { CallAgent = callAgent, AssignedAtUtc = SeededAtUtc });
         }
     }
 
-    private static ShiftApplication Pending(Shift shift, Expert expert, DateTime appliedAtUtc) => new()
+    private static ShiftApplication Pending(Shift shift, CallAgent callAgent, DateTime appliedAtUtc) => new()
     {
         Shift = shift,
-        Expert = expert,
+        CallAgent = callAgent,
         Status = ApplicationStatus.Pending,
         AppliedAtUtc = appliedAtUtc,
     };
 
     private static ShiftApplication Decided(
         Shift shift,
-        Expert expert,
+        CallAgent callAgent,
         ApplicationStatus status,
         DateTime appliedAtUtc,
         User decidedBy,
@@ -251,7 +251,7 @@ public sealed class SeedData
         string? decisionNote) => new()
     {
         Shift = shift,
-        Expert = expert,
+        CallAgent = callAgent,
         Status = status,
         AppliedAtUtc = appliedAtUtc,
         DecidedByUser = decidedBy,

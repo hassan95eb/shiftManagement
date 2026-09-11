@@ -12,8 +12,8 @@ using ShiftFlow.Tests.Support;
 namespace ShiftFlow.Tests.Shifts;
 
 /// <summary>
-/// An employer creates shifts on their own projects only. A shift for another
-/// employer's project — or an unknown project — fails as NotFound and writes
+/// A supervisor creates shifts on their own projects only. A shift for another
+/// supervisor's project — or an unknown project — fails as NotFound and writes
 /// nothing (CLAUDE.md §7).
 /// </summary>
 public class CreateShiftTests
@@ -22,14 +22,14 @@ public class CreateShiftTests
 
     private static DateTime At(int day, int hour) => new(2026, 7, day, hour, 0, 0, DateTimeKind.Utc);
 
-    private static ShiftService ServiceFor(SqliteTestContext ctx, int userId, int employerId) =>
-        new(ctx.Db, StubCurrentUser.Employer(userId, employerId), new TestClock(Now));
+    private static ShiftService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
+        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock(Now));
 
     [Fact]
     public async Task Creating_a_shift_on_an_own_project_stores_it_Open()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
+        var acme = ctx.Db.AddSupervisor("Acme");
         var project = ctx.Db.AddProject(acme.Id, "Support");
 
         var created = await ServiceFor(ctx, acme.UserId, acme.Id).CreateAsync(
@@ -47,11 +47,11 @@ public class CreateShiftTests
     }
 
     [Fact]
-    public async Task Creating_a_shift_for_another_employers_project_is_NotFound_and_writes_nothing()
+    public async Task Creating_a_shift_for_another_supervisors_project_is_NotFound_and_writes_nothing()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -66,7 +66,7 @@ public class CreateShiftTests
     public async Task Creating_a_shift_for_an_unknown_project_is_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
+        var acme = ctx.Db.AddSupervisor("Acme");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             ServiceFor(ctx, acme.UserId, acme.Id).CreateAsync(
@@ -78,7 +78,7 @@ public class CreateShiftTests
     public async Task Creating_a_shift_that_ends_before_it_starts_is_a_ValidationException()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
+        var acme = ctx.Db.AddSupervisor("Acme");
         var project = ctx.Db.AddProject(acme.Id, "Support");
 
         await Assert.ThrowsAsync<ValidationException>(() =>
@@ -91,7 +91,7 @@ public class CreateShiftTests
     public async Task Overnight_shift_needs_no_flag()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
+        var acme = ctx.Db.AddSupervisor("Acme");
         var project = ctx.Db.AddProject(acme.Id, "Support");
 
         var created = await ServiceFor(ctx, acme.UserId, acme.Id).CreateAsync(

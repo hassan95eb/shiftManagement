@@ -8,13 +8,13 @@ using ShiftFlow.Domain.Enums;
 namespace ShiftFlow.Application.Features.Shifts;
 
 /// <summary>
-/// Expert-facing read of the shifts an expert can apply to: those that are
-/// <see cref="ShiftStatus.Open"/> and belong to a project the expert is assigned
-/// to. Everything else — a closed shift, a shift on a project the expert is not
+/// CallAgent-facing read of the shifts a CallAgent can apply to: those that are
+/// <see cref="ShiftStatus.Open"/> and belong to a project the CallAgent is assigned
+/// to. Everything else — a closed shift, a shift on a project the CallAgent is not
 /// assigned to, an unknown id — is a <see cref="NotFoundException"/>, so project
-/// membership cannot be probed (CLAUDE.md §7). There is no expert view of a
+/// membership cannot be probed (CLAUDE.md §7). There is no CallAgent view of a
 /// closed shift in this phase; when applications exist (phase 9) that phase adds
-/// the expert's own-applications view.
+/// the CallAgent's own-applications view.
 /// </summary>
 public sealed class OpenShiftService
 {
@@ -38,28 +38,28 @@ public sealed class OpenShiftService
         int? projectId,
         CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
 
         if (projectId is { } pid)
         {
-            var assigned = await _db.ExpertProjects
-                .AnyAsync(ep => ep.ExpertId == expertId && ep.ProjectId == pid, cancellationToken);
+            var assigned = await _db.CallAgentProjects
+                .AnyAsync(ep => ep.CallAgentId == callAgentId && ep.ProjectId == pid, cancellationToken);
             if (!assigned)
             {
                 throw new NotFoundException("Project not found.");
             }
         }
 
-        // Navigating Shift -> Project -> ExpertProjects (rather than a bare EXISTS
-        // on ExpertProjects) lets SQL Server drive the plan from the caller's
+        // Navigating Shift -> Project -> CallAgentProjects (rather than a bare EXISTS
+        // on CallAgentProjects) lets SQL Server drive the plan from the caller's
         // handful of assigned projects into a per-project Index Seek on
         // IX_Shifts_ProjectId_Status — the index docs/01 §5 designates for
-        // "open shifts on an expert's assigned projects" — instead of scanning
+        // "open shifts on a CallAgent's assigned projects" — instead of scanning
         // Shifts. Verified against the container; see the phase report.
         var query = _db.Shifts
             .AsNoTracking()
             .Where(s => s.Status == ShiftStatus.Open
-                        && s.Project.ExpertProjects.Any(ep => ep.ExpertId == expertId));
+                        && s.Project.CallAgentProjects.Any(ep => ep.CallAgentId == callAgentId));
 
         if (projectId is { } p)
         {
@@ -77,14 +77,14 @@ public sealed class OpenShiftService
     /// <summary>Gets one open shift on one of the caller's assigned projects by id.</summary>
     public async Task<ShiftResponse> GetAsync(int id, CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
 
         var shift = await _db.Shifts
             .AsNoTracking()
             .FirstOrDefaultAsync(
                 s => s.Id == id
                      && s.Status == ShiftStatus.Open
-                     && s.Project.ExpertProjects.Any(ep => ep.ExpertId == expertId),
+                     && s.Project.CallAgentProjects.Any(ep => ep.CallAgentId == callAgentId),
                 cancellationToken)
             ?? throw new NotFoundException("Shift not found.");
 

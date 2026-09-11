@@ -1,28 +1,28 @@
 using Microsoft.EntityFrameworkCore;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
-using ShiftFlow.Application.Features.Experts.Dtos;
-using ShiftFlow.Application.Features.Experts.Validators;
+using ShiftFlow.Application.Features.CallAgents.Dtos;
+using ShiftFlow.Application.Features.CallAgents.Validators;
 using ShiftFlow.Domain.Entities;
 using ShiftFlow.Domain.Enums;
 
-namespace ShiftFlow.Application.Features.Experts;
+namespace ShiftFlow.Application.Features.CallAgents;
 
 /// <summary>
-/// Expert use cases available to an employer. Experts are a shared specialist
-/// pool — the schema has no employer-ownership column on <c>Experts</c> — so the
-/// list and lookup are not employer-scoped; the ownership boundary that matters
-/// is on the assignment side (<see cref="ExpertProjectService"/>), which is
-/// rooted on the project. All endpoints still require an Employer principal.
+/// CallAgent use cases available to a supervisor. CallAgents are a shared specialist
+/// pool — the schema has no supervisor-ownership column on <c>CallAgents</c> — so the
+/// list and lookup are not supervisor-scoped; the ownership boundary that matters
+/// is on the assignment side (<see cref="CallAgentProjectService"/>), which is
+/// rooted on the project. All endpoints still require a Supervisor principal.
 /// </summary>
-public sealed class ExpertService
+public sealed class CallAgentService
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IClock _clock;
 
-    public ExpertService(
+    public CallAgentService(
         IAppDbContext db,
         ICurrentUser currentUser,
         IPasswordHasher passwordHasher,
@@ -35,17 +35,17 @@ public sealed class ExpertService
     }
 
     /// <summary>
-    /// Creates the <c>Users</c> row (role Expert, hashed password) and the
-    /// <c>Experts</c> row together. Both inserts go in one
+    /// Creates the <c>Users</c> row (role CallAgent, hashed password) and the
+    /// <c>CallAgents</c> row together. Both inserts go in one
     /// <see cref="IAppDbContext.SaveChangesAsync"/> call, so EF wraps them in a
     /// single transaction — a failure on either leaves neither behind.
     /// </summary>
-    public async Task<ExpertResponse> CreateAsync(CreateExpertRequest request, CancellationToken cancellationToken)
+    public async Task<CallAgentResponse> CreateAsync(CreateCallAgentRequest request, CancellationToken cancellationToken)
     {
-        // Guarantees the caller is a provisioned employer before any write.
-        _ = _currentUser.RequireEmployerId();
+        // Guarantees the caller is a provisioned supervisor before any write.
+        _ = _currentUser.RequireSupervisorId();
 
-        var (username, password, fullName) = CreateExpertRequestValidator.ValidateAndNormalize(request);
+        var (username, password, fullName) = CreateCallAgentRequestValidator.ValidateAndNormalize(request);
 
         var usernameTaken = await _db.Users.AnyAsync(u => u.Username == username, cancellationToken);
         if (usernameTaken)
@@ -57,7 +57,7 @@ public sealed class ExpertService
         }
 
         var now = _clock.UtcNow;
-        var expert = new Expert
+        var callAgent = new CallAgent
         {
             FullName = fullName,
             IsActive = true,
@@ -66,41 +66,41 @@ public sealed class ExpertService
             {
                 Username = username,
                 PasswordHash = _passwordHasher.Hash(password),
-                Role = UserRole.Expert,
+                Role = UserRole.CallAgent,
                 IsActive = true,
                 CreatedAtUtc = now,
             },
         };
 
-        _db.Experts.Add(expert);
+        _db.CallAgents.Add(callAgent);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return ToResponse(expert);
+        return ToResponse(callAgent);
     }
 
-    public async Task<IReadOnlyList<ExpertResponse>> ListAsync(CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<CallAgentResponse>> ListAsync(CancellationToken cancellationToken)
     {
-        _ = _currentUser.RequireEmployerId();
+        _ = _currentUser.RequireSupervisorId();
 
-        return await _db.Experts
+        return await _db.CallAgents
             .AsNoTracking()
             .OrderBy(e => e.FullName)
-            .Select(e => new ExpertResponse(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc))
+            .Select(e => new CallAgentResponse(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<ExpertResponse> GetAsync(int expertId, CancellationToken cancellationToken)
+    public async Task<CallAgentResponse> GetAsync(int callAgentId, CancellationToken cancellationToken)
     {
-        _ = _currentUser.RequireEmployerId();
+        _ = _currentUser.RequireSupervisorId();
 
-        return await _db.Experts
+        return await _db.CallAgents
                    .AsNoTracking()
-                   .Where(e => e.Id == expertId)
-                   .Select(e => new ExpertResponse(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc))
+                   .Where(e => e.Id == callAgentId)
+                   .Select(e => new CallAgentResponse(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc))
                    .FirstOrDefaultAsync(cancellationToken)
-               ?? throw new NotFoundException("Expert not found.");
+               ?? throw new NotFoundException("CallAgent not found.");
     }
 
-    private static ExpertResponse ToResponse(Expert e) =>
+    private static CallAgentResponse ToResponse(CallAgent e) =>
         new(e.Id, e.UserId, e.FullName, e.IsActive, e.CreatedAtUtc);
 }

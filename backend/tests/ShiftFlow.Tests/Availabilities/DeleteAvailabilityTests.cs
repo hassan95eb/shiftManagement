@@ -21,17 +21,17 @@ public class DeleteAvailabilityTests
 
     private static DateTime At(int hour) => new(2026, 7, 1, hour, 0, 0, DateTimeKind.Utc);
 
-    private static AvailabilityService ServiceFor(SqliteTestContext ctx, int userId, int expertId) =>
-        new(ctx.Db, StubCurrentUser.Expert(userId, expertId), new TestClock(Now));
+    private static AvailabilityService ServiceFor(SqliteTestContext ctx, int userId, int callAgentId) =>
+        new(ctx.Db, StubCurrentUser.CallAgent(userId, callAgentId), new TestClock(Now));
 
     [Fact]
     public async Task Deleting_a_window_with_no_approved_shift_behind_it_removes_it()
     {
         using var ctx = new SqliteTestContext();
-        var expert = ctx.Db.AddExpert("Jane Doe");
-        var window = ctx.Db.AddAvailability(expert.Id, At(8), At(12));
+        var callAgent = ctx.Db.AddCallAgent("Jane Doe");
+        var window = ctx.Db.AddAvailability(callAgent.Id, At(8), At(12));
 
-        await ServiceFor(ctx, expert.UserId, expert.Id)
+        await ServiceFor(ctx, callAgent.UserId, callAgent.Id)
             .DeleteAsync(window.Id, CancellationToken.None);
 
         Assert.False(await ctx.NewContext().Availabilities.AnyAsync(a => a.Id == window.Id));
@@ -41,16 +41,16 @@ public class DeleteAvailabilityTests
     public async Task Deleting_the_window_that_covers_an_approved_shift_is_blocked()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
-        var expert = ctx.Db.AddExpert("Jane Doe");
-        ctx.Db.Assign(expert.Id, project.Id);
-        ctx.Db.AddApplication(shift.Id, expert.Id, ApplicationStatus.Approved);
-        var window = ctx.Db.AddAvailability(expert.Id, At(6), At(20));
+        var callAgent = ctx.Db.AddCallAgent("Jane Doe");
+        ctx.Db.Assign(callAgent.Id, project.Id);
+        ctx.Db.AddApplication(shift.Id, callAgent.Id, ApplicationStatus.Approved);
+        var window = ctx.Db.AddAvailability(callAgent.Id, At(6), At(20));
 
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            ServiceFor(ctx, expert.UserId, expert.Id)
+            ServiceFor(ctx, callAgent.UserId, callAgent.Id)
                 .DeleteAsync(window.Id, CancellationToken.None));
 
         Assert.True(await ctx.NewContext().Availabilities.AnyAsync(a => a.Id == window.Id));
@@ -60,16 +60,16 @@ public class DeleteAvailabilityTests
     public async Task Deleting_a_window_while_another_still_covers_the_approved_shift_is_allowed()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
-        var expert = ctx.Db.AddExpert("Jane Doe");
-        ctx.Db.Assign(expert.Id, project.Id);
-        ctx.Db.AddApplication(shift.Id, expert.Id, ApplicationStatus.Approved);
-        var covering = ctx.Db.AddAvailability(expert.Id, At(6), At(20));
-        var unrelated = ctx.Db.AddAvailability(expert.Id, At(22), At(23));
+        var callAgent = ctx.Db.AddCallAgent("Jane Doe");
+        ctx.Db.Assign(callAgent.Id, project.Id);
+        ctx.Db.AddApplication(shift.Id, callAgent.Id, ApplicationStatus.Approved);
+        var covering = ctx.Db.AddAvailability(callAgent.Id, At(6), At(20));
+        var unrelated = ctx.Db.AddAvailability(callAgent.Id, At(22), At(23));
 
-        await ServiceFor(ctx, expert.UserId, expert.Id)
+        await ServiceFor(ctx, callAgent.UserId, callAgent.Id)
             .DeleteAsync(unrelated.Id, CancellationToken.None);
 
         Assert.True(await ctx.NewContext().Availabilities.AnyAsync(a => a.Id == covering.Id));
@@ -77,11 +77,11 @@ public class DeleteAvailabilityTests
     }
 
     [Fact]
-    public async Task Deleting_another_experts_window_is_NotFound_and_it_survives()
+    public async Task Deleting_another_call_agents_window_is_NotFound_and_it_survives()
     {
         using var ctx = new SqliteTestContext();
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         var janesWindow = ctx.Db.AddAvailability(jane.Id, At(8), At(12));
 
         await Assert.ThrowsAsync<NotFoundException>(() =>

@@ -8,7 +8,7 @@ using ShiftFlow.Application.Features.Applications.Dtos;
 namespace ShiftFlow.Api.Controllers;
 
 /// <summary>
-/// Expert-only: apply to a shift. The shift comes from the route and the expert
+/// CallAgent-only: apply to a shift. The shift comes from the route and the CallAgent
 /// from the token — there is no request body. Every apply rule is enforced in
 /// <see cref="ApplicationService"/>; a shift on a project the caller is not
 /// assigned to responds as 404 (not 403), so membership is not probeable
@@ -16,7 +16,7 @@ namespace ShiftFlow.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/shifts/{shiftId:int}/applications")]
-[Authorize(Roles = RoleNames.Expert)]
+[Authorize(Roles = RoleNames.CallAgent)]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
@@ -30,7 +30,7 @@ public sealed class ShiftApplicationsController : ControllerBase
     }
 
     /// <summary>
-    /// Applies the calling expert to the shift. Responds 404 when the shift is
+    /// Applies the calling CallAgent to the shift. Responds 404 when the shift is
     /// not on one of the caller's assigned projects, and 409 when the shift is
     /// not Open, the caller has already applied, their availability does not
     /// cover the whole shift, or the shift overlaps one they are already

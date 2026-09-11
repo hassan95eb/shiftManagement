@@ -8,7 +8,7 @@ namespace ShiftFlow.Application.Features.Recommendations.Dtos;
 /// tie-break — so the position in the response <i>is</i> the rank.
 /// </summary>
 public sealed record RecommendationResponse(
-    int ExpertId,
+    int CallAgentId,
     decimal Score,
     string Reason,
     DateTime ComputedAtUtc);

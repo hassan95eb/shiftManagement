@@ -14,9 +14,9 @@ public static class ClaimNames
     /// <summary>The account role, the string form of <c>UserRole</c>.</summary>
     public const string Role = "role";
 
-    /// <summary>Present only for an Employer account: the <c>Employers.Id</c>.</summary>
-    public const string EmployerId = "employerId";
+    /// <summary>Present only for a Supervisor account: the <c>Supervisors.Id</c>.</summary>
+    public const string SupervisorId = "supervisorId";
 
-    /// <summary>Present only for an Expert account: the <c>Experts.Id</c>.</summary>
-    public const string ExpertId = "expertId";
+    /// <summary>Present only for a CallAgent account: the <c>CallAgents.Id</c>.</summary>
+    public const string CallAgentId = "callAgentId";
 }

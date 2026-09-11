@@ -10,7 +10,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
     public void Configure(EntityTypeBuilder<User> builder)
     {
         builder.ToTable("Users", t =>
-            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Employer', 'Expert')"));
+            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Supervisor', 'CallAgent')"));
 
         builder.HasKey(u => u.Id);
 
@@ -40,7 +40,7 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<User>
             .IsUnique()
             .HasDatabaseName("UQ_Users_Username");
 
-        // Relationships to Employer / Expert are configured on the dependent
-        // side (EmployerConfiguration, ExpertConfiguration).
+        // Relationships to Supervisor / CallAgent are configured on the dependent
+        // side (SupervisorConfiguration, CallAgentConfiguration).
     }
 }

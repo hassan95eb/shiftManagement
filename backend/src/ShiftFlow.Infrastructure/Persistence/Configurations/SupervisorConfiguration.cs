@@ -4,12 +4,12 @@ using ShiftFlow.Domain.Entities;
 
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
-/// <summary>docs/01-erd-and-schema.md §3-2. Employers → Users: CASCADE (§4).</summary>
-public sealed class EmployerConfiguration : IEntityTypeConfiguration<Employer>
+/// <summary>docs/01-erd-and-schema.md §3-2. Supervisors → Users: CASCADE (§4).</summary>
+public sealed class SupervisorConfiguration : IEntityTypeConfiguration<Supervisor>
 {
-    public void Configure(EntityTypeBuilder<Employer> builder)
+    public void Configure(EntityTypeBuilder<Supervisor> builder)
     {
-        builder.ToTable("Employers");
+        builder.ToTable("Supervisors");
 
         builder.HasKey(e => e.Id);
 
@@ -23,11 +23,11 @@ public sealed class EmployerConfiguration : IEntityTypeConfiguration<Employer>
 
         builder.HasIndex(e => e.UserId)
             .IsUnique()
-            .HasDatabaseName("UQ_Employers_UserId");
+            .HasDatabaseName("UQ_Supervisors_UserId");
 
         builder.HasOne(e => e.User)
-            .WithOne(u => u.Employer)
-            .HasForeignKey<Employer>(e => e.UserId)
+            .WithOne(u => u.Supervisor)
+            .HasForeignKey<Supervisor>(e => e.UserId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }

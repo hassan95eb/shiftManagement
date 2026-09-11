@@ -22,7 +22,7 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
-IF EXISTS (SELECT 1 FROM [Users] WHERE [Username] = N'employer')
+IF EXISTS (SELECT 1 FROM [Users] WHERE [Username] = N'supervisor')
 BEGIN
     PRINT 'ShiftFlow scenario seed already present; nothing inserted.';
     RETURN;
@@ -36,17 +36,17 @@ DECLARE @pwd      nvarchar(256) = N'$2a$12$qlH6tb.BC9jdDlt2vk2D5uGNM6BJH9SSvlnIc
 -- --- Users -----------------------------------------------------------------
 INSERT INTO [Users] ([Username], [PasswordHash], [Role], [IsActive], [CreatedAtUtc])
 VALUES
-    (N'employer', @pwd, N'Employer', 1, @seeded),
-    (N'rival',    @pwd, N'Employer', 1, @seeded),
-    (N'ada',      @pwd, N'Expert',   1, @seeded),
-    (N'grace',    @pwd, N'Expert',   1, @seeded),
-    (N'lin',      @pwd, N'Expert',   1, @seeded),
-    (N'omar',     @pwd, N'Expert',   1, @seeded),
-    (N'nate',     @pwd, N'Expert',   1, @seeded),
-    (N'kite',     @pwd, N'Expert',   1, @seeded),
-    (N'rosa',     @pwd, N'Expert',   1, @seeded);
+    (N'supervisor', @pwd, N'Supervisor', 1, @seeded),
+    (N'rival',    @pwd, N'Supervisor', 1, @seeded),
+    (N'ada',      @pwd, N'CallAgent',   1, @seeded),
+    (N'grace',    @pwd, N'CallAgent',   1, @seeded),
+    (N'lin',      @pwd, N'CallAgent',   1, @seeded),
+    (N'omar',     @pwd, N'CallAgent',   1, @seeded),
+    (N'nate',     @pwd, N'CallAgent',   1, @seeded),
+    (N'kite',     @pwd, N'CallAgent',   1, @seeded),
+    (N'rosa',     @pwd, N'CallAgent',   1, @seeded);
 
-DECLARE @uEmployer int = (SELECT [Id] FROM [Users] WHERE [Username] = N'employer');
+DECLARE @uSupervisor int = (SELECT [Id] FROM [Users] WHERE [Username] = N'supervisor');
 DECLARE @uRival    int = (SELECT [Id] FROM [Users] WHERE [Username] = N'rival');
 DECLARE @uAda      int = (SELECT [Id] FROM [Users] WHERE [Username] = N'ada');
 DECLARE @uGrace    int = (SELECT [Id] FROM [Users] WHERE [Username] = N'grace');
@@ -56,17 +56,17 @@ DECLARE @uNate     int = (SELECT [Id] FROM [Users] WHERE [Username] = N'nate');
 DECLARE @uKite     int = (SELECT [Id] FROM [Users] WHERE [Username] = N'kite');
 DECLARE @uRosa     int = (SELECT [Id] FROM [Users] WHERE [Username] = N'rosa');
 
--- --- Employers -----------------------------------------------------------
-INSERT INTO [Employers] ([UserId], [Name], [CreatedAtUtc])
+-- --- Supervisors -----------------------------------------------------------
+INSERT INTO [Supervisors] ([UserId], [Name], [CreatedAtUtc])
 VALUES
-    (@uEmployer, N'Northwind Support',  @seeded),
+    (@uSupervisor, N'Northwind Support',  @seeded),
     (@uRival,    N'Southwind Staffing', @seeded);
 
-DECLARE @eNorthwind int = (SELECT [Id] FROM [Employers] WHERE [UserId] = @uEmployer);
-DECLARE @eSouthwind int = (SELECT [Id] FROM [Employers] WHERE [UserId] = @uRival);
+DECLARE @eNorthwind int = (SELECT [Id] FROM [Supervisors] WHERE [UserId] = @uSupervisor);
+DECLARE @eSouthwind int = (SELECT [Id] FROM [Supervisors] WHERE [UserId] = @uRival);
 
--- --- Experts -----------------------------------------------------------
-INSERT INTO [Experts] ([UserId], [FullName], [IsActive], [CreatedAtUtc])
+-- --- CallAgents -----------------------------------------------------------
+INSERT INTO [CallAgents] ([UserId], [FullName], [IsActive], [CreatedAtUtc])
 VALUES
     (@uAda,   N'Ada Lovelace',   1, @seeded),
     (@uGrace, N'Grace Hopper',   1, @seeded),
@@ -76,27 +76,27 @@ VALUES
     (@uKite,  N'Kite Tanaka',    1, @seeded),
     (@uRosa,  N'Rosa Parks',     1, @seeded);
 
-DECLARE @xAda   int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uAda);
-DECLARE @xGrace int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uGrace);
-DECLARE @xLin   int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uLin);
-DECLARE @xOmar  int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uOmar);
-DECLARE @xNate  int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uNate);
-DECLARE @xKite  int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uKite);
-DECLARE @xRosa  int = (SELECT [Id] FROM [Experts] WHERE [UserId] = @uRosa);
+DECLARE @xAda   int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uAda);
+DECLARE @xGrace int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uGrace);
+DECLARE @xLin   int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uLin);
+DECLARE @xOmar  int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uOmar);
+DECLARE @xNate  int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uNate);
+DECLARE @xKite  int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uKite);
+DECLARE @xRosa  int = (SELECT [Id] FROM [CallAgents] WHERE [UserId] = @uRosa);
 
 -- --- Projects ---------------------------------------------------------
-INSERT INTO [Projects] ([EmployerId], [Name], [IsActive], [CreatedAtUtc])
+INSERT INTO [Projects] ([SupervisorId], [Name], [IsActive], [CreatedAtUtc])
 VALUES
     (@eNorthwind, N'Retail Support',  1, @seeded),
     (@eNorthwind, N'Billing Support', 1, @seeded),
     (@eSouthwind, N'Overflow Desk',   1, @seeded);
 
-DECLARE @pRetail   int = (SELECT [Id] FROM [Projects] WHERE [EmployerId] = @eNorthwind AND [Name] = N'Retail Support');
-DECLARE @pBilling  int = (SELECT [Id] FROM [Projects] WHERE [EmployerId] = @eNorthwind AND [Name] = N'Billing Support');
-DECLARE @pOverflow int = (SELECT [Id] FROM [Projects] WHERE [EmployerId] = @eSouthwind AND [Name] = N'Overflow Desk');
+DECLARE @pRetail   int = (SELECT [Id] FROM [Projects] WHERE [SupervisorId] = @eNorthwind AND [Name] = N'Retail Support');
+DECLARE @pBilling  int = (SELECT [Id] FROM [Projects] WHERE [SupervisorId] = @eNorthwind AND [Name] = N'Billing Support');
+DECLARE @pOverflow int = (SELECT [Id] FROM [Projects] WHERE [SupervisorId] = @eSouthwind AND [Name] = N'Overflow Desk');
 
--- --- ExpertProjects (assignments) ----------------------------------
-INSERT INTO [ExpertProjects] ([ExpertId], [ProjectId], [AssignedAtUtc])
+-- --- CallAgentProjects (assignments) ----------------------------------
+INSERT INTO [CallAgentProjects] ([CallAgentId], [ProjectId], [AssignedAtUtc])
 VALUES
     (@xAda,   @pRetail,   @seeded),
     (@xGrace, @pRetail,   @seeded),
@@ -111,7 +111,7 @@ VALUES
 -- grace covers only 06:00-14:00 on 2026-11-10 -> fails apply rule 3 for the
 -- 08:00-16:00 Retail shift. omar has no window that day at all. lin covers it
 -- exactly. ada/nate/kite cover it with room to spare.
-INSERT INTO [Availabilities] ([ExpertId], [StartUtc], [EndUtc], [CreatedAtUtc])
+INSERT INTO [Availabilities] ([CallAgentId], [StartUtc], [EndUtc], [CreatedAtUtc])
 VALUES
     (@xAda,   '2026-11-10T06:00:00', '2026-11-10T22:00:00', @seeded),
     (@xAda,   '2026-11-12T06:00:00', '2026-11-12T22:00:00', @seeded),
@@ -141,20 +141,20 @@ DECLARE @sAdaAppr int = (SELECT [Id] FROM [Shifts] WHERE [ProjectId] = @pRetail 
 -- --- ShiftApplications --------------------------------------------
 -- The pool on the open Retail shift: three pending applicants (add lin through
 -- the API for a fourth).
-INSERT INTO [ShiftApplications] ([ShiftId], [ExpertId], [Status], [AppliedAtUtc], [DecidedByUserId], [DecidedAtUtc], [DecisionNote])
+INSERT INTO [ShiftApplications] ([ShiftId], [CallAgentId], [Status], [AppliedAtUtc], [DecidedByUserId], [DecidedAtUtc], [DecisionNote])
 VALUES
     (@sPool, @xAda,  N'Pending', '2026-11-01T09:00:00', NULL, NULL, NULL),
     (@sPool, @xNate, N'Pending', '2026-11-01T10:00:00', NULL, NULL, NULL),
     (@sPool, @xKite, N'Pending', '2026-11-02T08:00:00', NULL, NULL, NULL),
     -- The completed decision on the Closed Retail shift: omar approved, kite
     -- rejected with the exact note the approval cascade writes.
-    (@sClosed, @xOmar, N'Approved', '2026-10-28T09:00:00', @uEmployer, '2026-10-30T12:00:00', NULL),
-    (@sClosed, @xKite, N'Rejected', '2026-10-28T10:00:00', @uEmployer, '2026-10-30T12:00:00', N'Shift filled by another expert.'),
+    (@sClosed, @xOmar, N'Approved', '2026-10-28T09:00:00', @uSupervisor, '2026-10-30T12:00:00', NULL),
+    (@sClosed, @xKite, N'Rejected', '2026-10-28T10:00:00', @uSupervisor, '2026-10-30T12:00:00', N'Shift filled by another CallAgent.'),
     -- ada already holds an approved 09:00-17:00 shift on 2026-11-12.
-    (@sAdaAppr, @xAda, N'Approved', '2026-10-29T09:00:00', @uEmployer, '2026-11-01T08:00:00', NULL);
+    (@sAdaAppr, @xAda, N'Approved', '2026-10-29T09:00:00', @uSupervisor, '2026-11-01T08:00:00', NULL);
 
--- --- ExpertRatings (previous month = 2026-10; kite deliberately has none) --
-INSERT INTO [ExpertRatings] ([ExpertId], [Period], [Score], [CreatedAtUtc])
+-- --- Ratings (previous month = 2026-10; kite deliberately has none) --
+INSERT INTO [Ratings] ([CallAgentId], [Period], [Score], [CreatedAtUtc])
 VALUES
     (@xAda,   '2026-10', 4.6, @seeded),
     (@xAda,   '2026-09', 4.2, @seeded),
@@ -167,7 +167,7 @@ VALUES
 -- Read-only rows the Python recommender would write. Numbers follow the
 -- CLAUDE.md ss5 formula for the 8h shift; Score is the sum of the three
 -- one-decimal components in Reason.
-INSERT INTO [Recommendations] ([ShiftId], [ExpertId], [Score], [Reason], [ComputedAtUtc])
+INSERT INTO [Recommendations] ([ShiftId], [CallAgentId], [Score], [Reason], [ComputedAtUtc])
 VALUES
     (@sPool, @xAda,  76.10, N'Rating 4.6/5 -> 27.6 | Workload 8h -> 28.5 | Availability 8/16h -> 20.0 | Total 76.1', '2026-11-03T06:00:00'),
     (@sPool, @xNate, 71.50, N'Rating 3.1/5 -> 18.6 | Workload 0h -> 30.0 | Availability 8/14h -> 22.9 | Total 71.5', '2026-11-03T06:00:00'),

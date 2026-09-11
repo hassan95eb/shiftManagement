@@ -5,15 +5,15 @@ using ShiftFlow.Domain.Entities;
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// docs/01-erd-and-schema.md §3-9. Seed-only table. ExpertRatings → Experts:
+/// docs/01-erd-and-schema.md §3-9. Seed-only table. Ratings → CallAgents:
 /// CASCADE (§4).
 /// </summary>
-public sealed class ExpertRatingConfiguration : IEntityTypeConfiguration<ExpertRating>
+public sealed class RatingConfiguration : IEntityTypeConfiguration<Rating>
 {
-    public void Configure(EntityTypeBuilder<ExpertRating> builder)
+    public void Configure(EntityTypeBuilder<Rating> builder)
     {
-        builder.ToTable("ExpertRatings", t =>
-            t.HasCheckConstraint("CK_ExpertRatings_Score", "[Score] BETWEEN 1.0 AND 5.0"));
+        builder.ToTable("Ratings", t =>
+            t.HasCheckConstraint("CK_Ratings_Score", "[Score] BETWEEN 1.0 AND 5.0"));
 
         builder.HasKey(r => r.Id);
 
@@ -31,13 +31,13 @@ public sealed class ExpertRatingConfiguration : IEntityTypeConfiguration<ExpertR
             .IsRequired()
             .HasColumnType("datetime2(0)");
 
-        builder.HasIndex(r => new { r.ExpertId, r.Period })
+        builder.HasIndex(r => new { r.CallAgentId, r.Period })
             .IsUnique()
-            .HasDatabaseName("UQ_ExpertRatings_Expert_Period");
+            .HasDatabaseName("UQ_Ratings_CallAgent_Period");
 
-        builder.HasOne(r => r.Expert)
-            .WithMany(e => e.ExpertRatings)
-            .HasForeignKey(r => r.ExpertId)
+        builder.HasOne(r => r.CallAgent)
+            .WithMany(e => e.Ratings)
+            .HasForeignKey(r => r.CallAgentId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }

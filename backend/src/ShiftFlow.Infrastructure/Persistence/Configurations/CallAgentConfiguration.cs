@@ -4,12 +4,12 @@ using ShiftFlow.Domain.Entities;
 
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
-/// <summary>docs/01-erd-and-schema.md §3-3. Experts → Users: CASCADE (§4).</summary>
-public sealed class ExpertConfiguration : IEntityTypeConfiguration<Expert>
+/// <summary>docs/01-erd-and-schema.md §3-3. CallAgents → Users: CASCADE (§4).</summary>
+public sealed class CallAgentConfiguration : IEntityTypeConfiguration<CallAgent>
 {
-    public void Configure(EntityTypeBuilder<Expert> builder)
+    public void Configure(EntityTypeBuilder<CallAgent> builder)
     {
-        builder.ToTable("Experts");
+        builder.ToTable("CallAgents");
 
         builder.HasKey(e => e.Id);
 
@@ -27,11 +27,11 @@ public sealed class ExpertConfiguration : IEntityTypeConfiguration<Expert>
 
         builder.HasIndex(e => e.UserId)
             .IsUnique()
-            .HasDatabaseName("UQ_Experts_UserId");
+            .HasDatabaseName("UQ_CallAgents_UserId");
 
         builder.HasOne(e => e.User)
-            .WithOne(u => u.Expert)
-            .HasForeignKey<Expert>(e => e.UserId)
+            .WithOne(u => u.CallAgent)
+            .HasForeignKey<CallAgent>(e => e.UserId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }

@@ -5,7 +5,7 @@ using ShiftFlow.Domain.Entities;
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// docs/01-erd-and-schema.md §3-8. Shift side CASCADE (path 1); Expert side and
+/// docs/01-erd-and-schema.md §3-8. Shift side CASCADE (path 1); CallAgent side and
 /// DecidedByUser side NO ACTION (§4). The filtered unique index is the last
 /// line of defense against a double-approval race.
 /// </summary>
@@ -40,17 +40,17 @@ public sealed class ShiftApplicationConfiguration : IEntityTypeConfiguration<Shi
             .IsRequired(false)
             .HasMaxLength(256);
 
-        builder.HasIndex(a => new { a.ShiftId, a.ExpertId })
+        builder.HasIndex(a => new { a.ShiftId, a.CallAgentId })
             .IsUnique()
-            .HasDatabaseName("UQ_ShiftApplications_Shift_Expert");
+            .HasDatabaseName("UQ_ShiftApplications_Shift_CallAgent");
 
         builder.HasIndex(a => a.ShiftId)
             .IsUnique()
             .HasDatabaseName("UX_ShiftApplications_OneApproved")
             .HasFilter("[Status] = 'Approved'");
 
-        builder.HasIndex(a => new { a.ExpertId, a.Status })
-            .HasDatabaseName("IX_ShiftApplications_Expert_Status")
+        builder.HasIndex(a => new { a.CallAgentId, a.Status })
+            .HasDatabaseName("IX_ShiftApplications_CallAgent_Status")
             .IncludeProperties(a => a.ShiftId);
 
         builder.HasIndex(a => new { a.ShiftId, a.Status })
@@ -62,9 +62,9 @@ public sealed class ShiftApplicationConfiguration : IEntityTypeConfiguration<Shi
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
 
-        builder.HasOne(a => a.Expert)
+        builder.HasOne(a => a.CallAgent)
             .WithMany(e => e.ShiftApplications)
-            .HasForeignKey(a => a.ExpertId)
+            .HasForeignKey(a => a.CallAgentId)
             .IsRequired()
             .OnDelete(DeleteBehavior.NoAction);
 

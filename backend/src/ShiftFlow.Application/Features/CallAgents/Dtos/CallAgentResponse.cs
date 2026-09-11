@@ -1,12 +1,12 @@
-namespace ShiftFlow.Application.Features.Experts.Dtos;
+namespace ShiftFlow.Application.Features.CallAgents.Dtos;
 
 /// <summary>
-/// An expert as returned to an employer. The login username is deliberately
-/// omitted: the experts list is a shared pool, not employer-scoped, so echoing
-/// usernames would hand every employer half of every other expert's credentials.
+/// A CallAgent as returned to a supervisor. The login username is deliberately
+/// omitted: the CallAgents list is a shared pool, not supervisor-scoped, so echoing
+/// usernames would hand every supervisor half of every other CallAgent's credentials.
 /// The password hash is never exposed either.
 /// </summary>
-public sealed record ExpertResponse(
+public sealed record CallAgentResponse(
     int Id,
     int UserId,
     string FullName,

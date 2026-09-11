@@ -1,13 +1,13 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace ShiftFlow.Application.Features.Experts.Dtos;
+namespace ShiftFlow.Application.Features.CallAgents.Dtos;
 
 /// <summary>
-/// Body of <c>POST /api/experts</c>. The employer supplies the new specialist's
+/// Body of <c>POST /api/call-agents</c>. The supervisor supplies the new specialist's
 /// initial login. A real system would email an invitation instead of setting the
 /// password directly; that trade-off is noted in the README.
 /// </summary>
-public sealed class CreateExpertRequest
+public sealed class CreateCallAgentRequest
 {
     [Required]
     [MaxLength(64)]

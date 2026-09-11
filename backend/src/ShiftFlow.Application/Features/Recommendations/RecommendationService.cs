@@ -7,7 +7,7 @@ using ShiftFlow.Domain.Enums;
 namespace ShiftFlow.Application.Features.Recommendations;
 
 /// <summary>
-/// Employer-facing, read-only view of a shift's applicant ranking. The rows are
+/// Supervisor-facing, read-only view of a shift's applicant ranking. The rows are
 /// produced by the standalone Python script (docs/01-erd-and-schema.md §3-10,
 /// §6-4); this service never writes to <c>Recommendations</c>.
 /// </summary>
@@ -31,7 +31,7 @@ public sealed class RecommendationService
 
     /// <summary>
     /// The ranking for <paramref name="shiftId"/>, best first. A shift on another
-    /// employer's project — or an unknown id — is a <see cref="NotFoundException"/>
+    /// supervisor's project — or an unknown id — is a <see cref="NotFoundException"/>
     /// (404), so ids are not probeable (CLAUDE.md §7). An empty list means the
     /// recommender has not run for this shift yet.
     /// </summary>
@@ -39,12 +39,12 @@ public sealed class RecommendationService
         int shiftId,
         CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         var shift = await _db.Shifts
             .AsNoTracking()
             .FirstOrDefaultAsync(
-                s => s.Id == shiftId && s.Project.EmployerId == employerId,
+                s => s.Id == shiftId && s.Project.SupervisorId == supervisorId,
                 cancellationToken)
             ?? throw new NotFoundException("Shift not found.");
 
@@ -54,8 +54,8 @@ public sealed class RecommendationService
             from r in _db.Recommendations.AsNoTracking()
             where r.ShiftId == shiftId
             join a in _db.ShiftApplications.AsNoTracking()
-                on new { r.ShiftId, r.ExpertId } equals new { a.ShiftId, a.ExpertId }
-            select new Row(r.ExpertId, r.Score, r.Reason, r.ComputedAtUtc, a.AppliedAtUtc))
+                on new { r.ShiftId, r.CallAgentId } equals new { a.ShiftId, a.CallAgentId }
+            select new Row(r.CallAgentId, r.Score, r.Reason, r.ComputedAtUtc, a.AppliedAtUtc))
             .ToListAsync(cancellationToken);
 
         if (rows.Count == 0)
@@ -66,32 +66,32 @@ public sealed class RecommendationService
         // Approved hours are counted for the month of Shift.StartUtc (CLAUDE.md §5).
         var monthStart = new DateTime(shift.StartUtc.Year, shift.StartUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
         var monthEnd = monthStart.AddMonths(1);
-        var expertIds = rows.Select(x => x.ExpertId).ToList();
+        var callAgentIds = rows.Select(x => x.CallAgentId).ToList();
 
         var approvedSpans = await _db.ShiftApplications
             .AsNoTracking()
             .Where(a => a.Status == ApplicationStatus.Approved
-                        && expertIds.Contains(a.ExpertId)
+                        && callAgentIds.Contains(a.CallAgentId)
                         && a.Shift.StartUtc >= monthStart
                         && a.Shift.StartUtc < monthEnd)
-            .Select(a => new { a.ExpertId, a.Shift.StartUtc, a.Shift.EndUtc })
+            .Select(a => new { a.CallAgentId, a.Shift.StartUtc, a.Shift.EndUtc })
             .ToListAsync(cancellationToken);
 
-        var approvedHoursByExpert = approvedSpans
-            .GroupBy(x => x.ExpertId)
+        var approvedHoursByCallAgent = approvedSpans
+            .GroupBy(x => x.CallAgentId)
             .ToDictionary(g => g.Key, g => g.Sum(x => (x.EndUtc - x.StartUtc).TotalHours));
 
         return rows
             .OrderByDescending(x => x.Score)
-            .ThenBy(x => approvedHoursByExpert.GetValueOrDefault(x.ExpertId, 0d))
+            .ThenBy(x => approvedHoursByCallAgent.GetValueOrDefault(x.CallAgentId, 0d))
             .ThenBy(x => x.AppliedAtUtc)
-            .ThenBy(x => x.ExpertId)
-            .Select(x => new RecommendationResponse(x.ExpertId, x.Score, x.Reason, x.ComputedAtUtc))
+            .ThenBy(x => x.CallAgentId)
+            .Select(x => new RecommendationResponse(x.CallAgentId, x.Score, x.Reason, x.ComputedAtUtc))
             .ToList();
     }
 
     private sealed record Row(
-        int ExpertId,
+        int CallAgentId,
         decimal Score,
         string Reason,
         DateTime ComputedAtUtc,

@@ -48,26 +48,26 @@ public class ModelMappingTests
     }
 
     [Theory]
-    [InlineData(typeof(Employer), "UserId")]           // Employers  -> Users
-    [InlineData(typeof(Expert), "UserId")]             // Experts    -> Users
-    [InlineData(typeof(Project), "EmployerId")]        // Projects   -> Employers
+    [InlineData(typeof(Supervisor), "UserId")]           // Supervisors  -> Users
+    [InlineData(typeof(CallAgent), "UserId")]             // CallAgents    -> Users
+    [InlineData(typeof(Project), "SupervisorId")]        // Projects   -> Supervisors
     [InlineData(typeof(Shift), "ProjectId")]           // Shifts     -> Projects
-    [InlineData(typeof(Availability), "ExpertId")]     // Availabilities  -> Experts
-    [InlineData(typeof(ExpertRating), "ExpertId")]     // ExpertRatings   -> Experts
-    [InlineData(typeof(ExpertProject), "ExpertId")]    // ExpertProjects  -> Experts (path 1)
+    [InlineData(typeof(Availability), "CallAgentId")]     // Availabilities  -> CallAgents
+    [InlineData(typeof(Rating), "CallAgentId")]     // Ratings   -> CallAgents
+    [InlineData(typeof(CallAgentProject), "CallAgentId")]    // CallAgentProjects  -> CallAgents (path 1)
     [InlineData(typeof(ShiftApplication), "ShiftId")]  // ShiftApplications -> Shifts (path 1)
     [InlineData(typeof(Recommendation), "ShiftId")]    // Recommendations   -> Shifts (path 1)
-    public void Employer_project_shift_path_cascades(Type entity, string fkProperty)
+    public void Supervisor_project_shift_path_cascades(Type entity, string fkProperty)
     {
         Assert.Equal("Cascade", DeleteBehaviorOf(Model(), entity, fkProperty));
     }
 
     [Theory]
-    [InlineData(typeof(ExpertProject), "ProjectId")]        // second path into ExpertProjects
-    [InlineData(typeof(ShiftApplication), "ExpertId")]      // second path into ShiftApplications
+    [InlineData(typeof(CallAgentProject), "ProjectId")]        // second path into CallAgentProjects
+    [InlineData(typeof(ShiftApplication), "CallAgentId")]      // second path into ShiftApplications
     [InlineData(typeof(ShiftApplication), "DecidedByUserId")] // decision audit must survive
-    [InlineData(typeof(Recommendation), "ExpertId")]        // second path into Recommendations
-    public void Every_expert_side_fk_is_no_action(Type entity, string fkProperty)
+    [InlineData(typeof(Recommendation), "CallAgentId")]        // second path into Recommendations
+    public void Every_call_agent_side_fk_is_no_action(Type entity, string fkProperty)
     {
         Assert.Equal("NoAction", DeleteBehaviorOf(Model(), entity, fkProperty));
     }

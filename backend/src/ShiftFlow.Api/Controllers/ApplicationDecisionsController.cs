@@ -8,16 +8,16 @@ using ShiftFlow.Application.Features.Applications.Dtos;
 namespace ShiftFlow.Api.Controllers;
 
 /// <summary>
-/// Employer-only: decide one pending application. <c>approval</c> runs the full
+/// Supervisor-only: decide one pending application. <c>approval</c> runs the full
 /// CLAUDE.md §5 transaction — approve this one, close the shift, reject the
 /// shift's other pending applications — as a unit; <c>rejection</c> touches only
 /// the one row and leaves the shift Open for the rest. An application on another
-/// employer's project responds as 404, not 403 (CLAUDE.md §7); a shift that is
+/// supervisor's project responds as 404, not 403 (CLAUDE.md §7); a shift that is
 /// no longer Open, or an application already decided, responds as 409.
 /// </summary>
 [ApiController]
 [Route("api/applications/{applicationId:int}")]
-[Authorize(Roles = RoleNames.Employer)]
+[Authorize(Roles = RoleNames.Supervisor)]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]

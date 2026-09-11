@@ -26,7 +26,7 @@ python recommendation.py
 docker compose run --rm recommender
 ```
 
-It is **idempotent**: the `MERGE` is keyed on `(ShiftId, ExpertId)`, so a second
+It is **idempotent**: the `MERGE` is keyed on `(ShiftId, CallAgentId)`, so a second
 run with no state change inserts nothing, updates nothing, and leaves
 `ComputedAtUtc` untouched. An applicant who can no longer be scored — no
 availability window covers the shift (so `AvailabilityScore` is undefined), lost
@@ -48,7 +48,7 @@ FinalScore        = (0.30*Rating + 0.30*Workload + 0.40*Availability) * 100
 - **"Previous month"** is the month before `Shift.StartUtc`'s month. **`ApprovedHours`**
   are counted for the month of `Shift.StartUtc`, not the current month. Resolving
   both from the database is the caller's job; `scoring.py` takes them as arguments.
-- An expert with **no rating row** scores as `3.0`.
+- A CallAgent with **no rating row** scores as `3.0`.
 - Ranking is over the **applicants of one shift**.
 
 ## The `Reason` string
@@ -59,7 +59,7 @@ The format matches
 on its first run, so a reviewer must never see two different explanations for one
 score. The three seeded rows for the pool shift (2026-11-10 08:00–16:00, 8 h):
 
-| Expert | `Score` | `Reason` |
+| CallAgent | `Score` | `Reason` |
 |---|---|---|
 | `ada` | `76.10` | `Rating 4.6/5 -> 27.6 \| Workload 8h -> 28.5 \| Availability 8/16h -> 20.0 \| Total 76.1` |
 | `nate` | `71.50` | `Rating 3.1/5 -> 18.6 \| Workload 0h -> 30.0 \| Availability 8/14h -> 22.9 \| Total 71.5` |
@@ -120,7 +120,7 @@ decisions therefore have no seeded row to match and are fixed here:
 1. `FinalScore` **descending**
 2. fewer `ApprovedHours` first
 3. earlier `AppliedAtUtc` first
-4. lower `ExpertId` first
+4. lower `CallAgentId` first
 
 `rank(applicants)` applies it. `applied_at_utc` may be any consistently ordered
 type (`datetime`, ISO-8601 string); every item in one ranking must use the same
@@ -138,7 +138,7 @@ type.
 | `SCORING__WORKLOADWEIGHT` | `0.30` | Workload weight |
 | `SCORING__AVAILABILITYWEIGHT` | `0.40` | Availability weight |
 | `SCORING__MONTHLYCAP` | `160` | Hours cap for `WorkloadScore` |
-| `SCORING__RATINGDEFAULT` | `3.0` | Score for an expert with no rating row |
+| `SCORING__RATINGDEFAULT` | `3.0` | Score for a CallAgent with no rating row |
 
 ASP.NET binds `Scoring:RatingWeight` from `SCORING__RATINGWEIGHT`, so one `.env`
 is meant to feed both the API and this script and keep the two scoring

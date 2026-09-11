@@ -81,9 +81,9 @@ shiftflow/
 
 ```text
 Domain/
-├── Entities/          User, Employer, Expert, Project, ExpertProject,
+├── Entities/          User, Supervisor, CallAgent, Project, CallAgentProject,
 │                      Availability, Shift, ShiftApplication,
-│                      ExpertRating, Recommendation
+│                      Rating, Recommendation
 ├── Enums/             UserRole, ShiftStatus, ApplicationStatus
 └── Exceptions/        DomainException, BusinessRuleViolationException
 ```
@@ -103,7 +103,7 @@ Application/
 ├── Features/
 │   ├── Auth/            LoginService + DTOs
 │   ├── Projects/
-│   ├── Experts/
+│   ├── CallAgents/
 │   ├── Availabilities/  ← منطق Merge اینجاست
 │   ├── Shifts/
 │   ├── Applications/    ← پنج Business Rule اینجاست
@@ -182,7 +182,7 @@ frontend/src/
 ├── features/
 │   ├── auth/           api.ts · types.ts · hooks.ts · pages/
 │   ├── projects/
-│   ├── experts/
+│   ├── call-agents/
 │   ├── availability/
 │   ├── shifts/
 │   ├── applications/
@@ -293,7 +293,7 @@ main
  ├── feat/project-scaffold
  ├── feat/domain-and-database
  ├── feat/auth-jwt
- ├── feat/projects-experts
+ ├── feat/projects-call-agents
  ├── feat/availability
  ├── feat/shifts
  ├── feat/applications-business-rules
@@ -326,7 +326,7 @@ git tag v1.0.0
 ```text
 feat(applications): enforce availability coverage rule
 
-An expert may only apply when the entire shift falls inside a single
+A CallAgent may only apply when the entire shift falls inside a single
 availability window. Adjacent windows are merged on insert, so this
 check stays a simple range containment query instead of a gap-filling
 algorithm.
@@ -335,10 +335,10 @@ Refs: docs/01-erd-and-schema.md §6
 ```
 
 ```text
-fix(db): break multiple cascade paths on Experts
+fix(db): break multiple cascade paths on CallAgents
 
 SQL Server rejects two cascade paths into the same table. FKs coming
-from the Expert side are set to NO ACTION; the Employer → Project →
+from the CallAgent side are set to NO ACTION; the Supervisor → Project →
 Shift path keeps cascade.
 ```
 

@@ -1,29 +1,29 @@
 using Microsoft.EntityFrameworkCore;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
-using ShiftFlow.Application.Features.Experts.Dtos;
+using ShiftFlow.Application.Features.CallAgents.Dtos;
 using ShiftFlow.Application.Features.Projects.Dtos;
 using ShiftFlow.Domain.Entities;
 using ShiftFlow.Domain.Enums;
 using ShiftFlow.Domain.Exceptions;
 
-namespace ShiftFlow.Application.Features.Experts;
+namespace ShiftFlow.Application.Features.CallAgents;
 
 /// <summary>
-/// Assigns experts to, and removes them from, an employer's projects. The routes
-/// start with the expert (<c>/api/experts/{id}/projects/{projectId}</c>) but the
+/// Assigns CallAgents to, and removes them from, a supervisor's projects. The routes
+/// start with the CallAgent (<c>/api/call-agents/{id}/projects/{projectId}</c>) but the
 /// authorization check that matters is on the <em>project</em>: it must belong
-/// to the calling employer, verified from the database, before anything is
-/// written. Checking only that the expert exists would let an employer assign
-/// someone to another employer's project (CLAUDE.md §7).
+/// to the calling supervisor, verified from the database, before anything is
+/// written. Checking only that the CallAgent exists would let a supervisor assign
+/// someone to another supervisor's project (CLAUDE.md §7).
 /// </summary>
-public sealed class ExpertProjectService
+public sealed class CallAgentProjectService
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
     private readonly IClock _clock;
 
-    public ExpertProjectService(IAppDbContext db, ICurrentUser currentUser, IClock clock)
+    public CallAgentProjectService(IAppDbContext db, ICurrentUser currentUser, IClock clock)
     {
         _db = db;
         _currentUser = currentUser;
@@ -31,25 +31,25 @@ public sealed class ExpertProjectService
     }
 
     /// <summary>
-    /// Assigns the expert to the project. Idempotent: if the assignment already
+    /// Assigns the CallAgent to the project. Idempotent: if the assignment already
     /// exists the call succeeds without a second write, so a repeated request
     /// never trips the composite primary key.
     /// </summary>
-    public async Task AssignAsync(int expertId, int projectId, CancellationToken cancellationToken)
+    public async Task AssignAsync(int callAgentId, int projectId, CancellationToken cancellationToken)
     {
         var project = await FindOwnedProjectAsync(projectId, cancellationToken);
-        await GuardExpertExistsAsync(expertId, cancellationToken);
+        await GuardCallAgentExistsAsync(callAgentId, cancellationToken);
 
-        var alreadyAssigned = await _db.ExpertProjects.AnyAsync(
-            ep => ep.ExpertId == expertId && ep.ProjectId == project.Id, cancellationToken);
+        var alreadyAssigned = await _db.CallAgentProjects.AnyAsync(
+            ep => ep.CallAgentId == callAgentId && ep.ProjectId == project.Id, cancellationToken);
         if (alreadyAssigned)
         {
             return;
         }
 
-        _db.ExpertProjects.Add(new ExpertProject
+        _db.CallAgentProjects.Add(new CallAgentProject
         {
-            ExpertId = expertId,
+            CallAgentId = callAgentId,
             ProjectId = project.Id,
             AssignedAtUtc = _clock.UtcNow,
         });
@@ -63,10 +63,10 @@ public sealed class ExpertProjectService
             // Lost a race with a concurrent identical assign: if the row the
             // other writer inserted is now there, the request is still
             // satisfied; otherwise the failure was something else, so rethrow.
-            _db.ExpertProjects.Remove(_db.ExpertProjects.Local.First(
-                ep => ep.ExpertId == expertId && ep.ProjectId == project.Id));
+            _db.CallAgentProjects.Remove(_db.CallAgentProjects.Local.First(
+                ep => ep.CallAgentId == callAgentId && ep.ProjectId == project.Id));
 
-            if (!await IsAssignedAsync(expertId, project.Id, cancellationToken))
+            if (!await IsAssignedAsync(callAgentId, project.Id, cancellationToken))
             {
                 throw;
             }
@@ -74,34 +74,34 @@ public sealed class ExpertProjectService
     }
 
     /// <summary>
-    /// Removes the assignment. Blocked with a 409 when the expert has an
+    /// Removes the assignment. Blocked with a 409 when the CallAgent has an
     /// <see cref="ApplicationStatus.Approved"/> application for a shift on this
     /// project — that would contradict work already approved. Any
     /// <see cref="ApplicationStatus.Pending"/> applications for the project's
     /// shifts are rejected with a decision note in the same transaction.
     /// </summary>
-    public async Task UnassignAsync(int expertId, int projectId, CancellationToken cancellationToken)
+    public async Task UnassignAsync(int callAgentId, int projectId, CancellationToken cancellationToken)
     {
         var project = await FindOwnedProjectAsync(projectId, cancellationToken);
 
-        var assignment = await _db.ExpertProjects.FirstOrDefaultAsync(
-                             ep => ep.ExpertId == expertId && ep.ProjectId == project.Id, cancellationToken)
-                         ?? throw new NotFoundException("This expert is not assigned to the project.");
+        var assignment = await _db.CallAgentProjects.FirstOrDefaultAsync(
+                             ep => ep.CallAgentId == callAgentId && ep.ProjectId == project.Id, cancellationToken)
+                         ?? throw new NotFoundException("This CallAgent is not assigned to the project.");
 
         var hasApproved = await _db.ShiftApplications.AnyAsync(
-            a => a.ExpertId == expertId
+            a => a.CallAgentId == callAgentId
                  && a.Status == ApplicationStatus.Approved
                  && a.Shift.ProjectId == project.Id,
             cancellationToken);
         if (hasApproved)
         {
             throw new BusinessRuleViolationException(
-                "This expert has an approved application for a shift on this project; "
+                "This CallAgent has an approved application for a shift on this project; "
                 + "the assignment cannot be removed.");
         }
 
         var pending = await _db.ShiftApplications
-            .Where(a => a.ExpertId == expertId
+            .Where(a => a.CallAgentId == callAgentId
                         && a.Status == ApplicationStatus.Pending
                         && a.Shift.ProjectId == project.Id)
             .ToListAsync(cancellationToken);
@@ -112,82 +112,82 @@ public sealed class ExpertProjectService
             application.Status = ApplicationStatus.Rejected;
             application.DecidedByUserId = _currentUser.UserId;
             application.DecidedAtUtc = now;
-            application.DecisionNote = "Expert unassigned from the project.";
+            application.DecisionNote = "CallAgent unassigned from the project.";
         }
 
-        _db.ExpertProjects.Remove(assignment);
+        _db.CallAgentProjects.Remove(assignment);
         await _db.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
-    /// The calling employer's projects that this expert is assigned to. Scoped
-    /// to the caller's own projects so it cannot reveal which other employers an
-    /// expert works for.
+    /// The calling supervisor's projects that this CallAgent is assigned to. Scoped
+    /// to the caller's own projects so it cannot reveal which other supervisors an
+    /// CallAgent works for.
     /// </summary>
-    public async Task<IReadOnlyList<ProjectResponse>> ListProjectsForExpertAsync(
-        int expertId,
+    public async Task<IReadOnlyList<ProjectResponse>> ListProjectsForCallAgentAsync(
+        int callAgentId,
         CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
-        await GuardExpertExistsAsync(expertId, cancellationToken);
+        var supervisorId = _currentUser.RequireSupervisorId();
+        await GuardCallAgentExistsAsync(callAgentId, cancellationToken);
 
-        return await _db.ExpertProjects
+        return await _db.CallAgentProjects
             .AsNoTracking()
-            .Where(ep => ep.ExpertId == expertId && ep.Project.EmployerId == employerId)
+            .Where(ep => ep.CallAgentId == callAgentId && ep.Project.SupervisorId == supervisorId)
             .OrderBy(ep => ep.Project.Name)
             .Select(ep => new ProjectResponse(
                 ep.Project.Id,
-                ep.Project.EmployerId,
+                ep.Project.SupervisorId,
                 ep.Project.Name,
                 ep.Project.IsActive,
                 ep.Project.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
-    /// <summary>The experts assigned to one of the calling employer's projects.</summary>
-    public async Task<IReadOnlyList<ExpertResponse>> ListExpertsForProjectAsync(
+    /// <summary>The CallAgents assigned to one of the calling supervisor's projects.</summary>
+    public async Task<IReadOnlyList<CallAgentResponse>> ListCallAgentsForProjectAsync(
         int projectId,
         CancellationToken cancellationToken)
     {
         var project = await FindOwnedProjectAsync(projectId, cancellationToken);
 
-        return await _db.ExpertProjects
+        return await _db.CallAgentProjects
             .AsNoTracking()
             .Where(ep => ep.ProjectId == project.Id)
-            .OrderBy(ep => ep.Expert.FullName)
-            .Select(ep => new ExpertResponse(
-                ep.Expert.Id,
-                ep.Expert.UserId,
-                ep.Expert.FullName,
-                ep.Expert.IsActive,
-                ep.Expert.CreatedAtUtc))
+            .OrderBy(ep => ep.CallAgent.FullName)
+            .Select(ep => new CallAgentResponse(
+                ep.CallAgent.Id,
+                ep.CallAgent.UserId,
+                ep.CallAgent.FullName,
+                ep.CallAgent.IsActive,
+                ep.CallAgent.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
     /// <summary>
     /// Loads a project by id and owner. A miss — unknown id or another
-    /// employer's project — is a <see cref="NotFoundException"/>, so the two
+    /// supervisor's project — is a <see cref="NotFoundException"/>, so the two
     /// cases are indistinguishable to the caller.
     /// </summary>
     private async Task<Project> FindOwnedProjectAsync(int projectId, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         return await _db.Projects
-                   .FirstOrDefaultAsync(p => p.Id == projectId && p.EmployerId == employerId, cancellationToken)
+                   .FirstOrDefaultAsync(p => p.Id == projectId && p.SupervisorId == supervisorId, cancellationToken)
                ?? throw new NotFoundException("Project not found.");
     }
 
-    private async Task GuardExpertExistsAsync(int expertId, CancellationToken cancellationToken)
+    private async Task GuardCallAgentExistsAsync(int callAgentId, CancellationToken cancellationToken)
     {
-        var exists = await _db.Experts.AnyAsync(e => e.Id == expertId, cancellationToken);
+        var exists = await _db.CallAgents.AnyAsync(e => e.Id == callAgentId, cancellationToken);
         if (!exists)
         {
-            throw new NotFoundException("Expert not found.");
+            throw new NotFoundException("CallAgent not found.");
         }
     }
 
-    private Task<bool> IsAssignedAsync(int expertId, int projectId, CancellationToken cancellationToken) =>
-        _db.ExpertProjects.AnyAsync(
-            ep => ep.ExpertId == expertId && ep.ProjectId == projectId, cancellationToken);
+    private Task<bool> IsAssignedAsync(int callAgentId, int projectId, CancellationToken cancellationToken) =>
+        _db.CallAgentProjects.AnyAsync(
+            ep => ep.CallAgentId == callAgentId && ep.ProjectId == projectId, cancellationToken);
 }

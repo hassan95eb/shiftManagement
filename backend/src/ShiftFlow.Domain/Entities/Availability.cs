@@ -1,17 +1,17 @@
 namespace ShiftFlow.Domain.Entities;
 
 /// <summary>
-/// A single date-based window during which an expert is available. Overlapping
+/// A single date-based window during which a CallAgent is available. Overlapping
 /// or adjacent windows are merged into one on insert by the service layer, so
-/// the database never holds two touching windows for one expert
+/// the database never holds two touching windows for one CallAgent
 /// (docs/01-erd-and-schema.md §3-6). CHECK (EndUtc &gt; StartUtc).
 /// </summary>
 public class Availability
 {
     public int Id { get; set; }
 
-    // FK -> Experts. CASCADE on delete.
-    public int ExpertId { get; set; }
+    // FK -> CallAgents. CASCADE on delete.
+    public int CallAgentId { get; set; }
 
     public DateTime StartUtc { get; set; }
 
@@ -20,5 +20,5 @@ public class Availability
     public DateTime CreatedAtUtc { get; set; }
 
     // Navigation
-    public Expert Expert { get; set; } = null!;
+    public CallAgent CallAgent { get; set; } = null!;
 }

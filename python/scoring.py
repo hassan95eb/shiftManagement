@@ -104,7 +104,7 @@ class RankableApplicant:
     consistently ordered type (``datetime``, ISO-8601 ``str``, ...); every item
     in one ranking must use the same type."""
 
-    expert_id: int
+    call_agent_id: int
     final_score: Decimal
     approved_hours: Decimal
     applied_at_utc: object
@@ -117,7 +117,7 @@ def rating_ratio(previous_month_rating: Optional[Decimal], config: ScoringConfig
     """``(previous-month rating or the configured default) / 5``.
 
     "Previous month" is the month before ``Shift.StartUtc``'s month; resolving it
-    is the caller's job. ``None`` here means the expert has no rating row.
+    is the caller's job. ``None`` here means the call_agent has no rating row.
     """
     rating = config.rating_default if previous_month_rating is None else previous_month_rating
     return rating / _FIVE
@@ -191,12 +191,12 @@ def score(
 def sort_key(applicant: RankableApplicant) -> tuple:
     """CLAUDE.md #5 tie-break, as a ``sorted(key=...)`` function: score
     descending, then fewer approved hours, then earlier ``AppliedAtUtc``, then
-    lower expert id."""
+    lower call_agent id."""
     return (
         -applicant.final_score,
         applicant.approved_hours,
         applicant.applied_at_utc,
-        applicant.expert_id,
+        applicant.call_agent_id,
     )
 
 

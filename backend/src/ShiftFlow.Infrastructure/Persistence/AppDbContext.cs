@@ -21,13 +21,13 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<User> Users => Set<User>();
 
-    public DbSet<Employer> Employers => Set<Employer>();
+    public DbSet<Supervisor> Supervisors => Set<Supervisor>();
 
-    public DbSet<Expert> Experts => Set<Expert>();
+    public DbSet<CallAgent> CallAgents => Set<CallAgent>();
 
     public DbSet<Project> Projects => Set<Project>();
 
-    public DbSet<ExpertProject> ExpertProjects => Set<ExpertProject>();
+    public DbSet<CallAgentProject> CallAgentProjects => Set<CallAgentProject>();
 
     public DbSet<Availability> Availabilities => Set<Availability>();
 
@@ -35,7 +35,7 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<ShiftApplication> ShiftApplications => Set<ShiftApplication>();
 
-    public DbSet<ExpertRating> ExpertRatings => Set<ExpertRating>();
+    public DbSet<Rating> Ratings => Set<Rating>();
 
     public DbSet<Recommendation> Recommendations => Set<Recommendation>();
 

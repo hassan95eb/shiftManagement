@@ -4,7 +4,7 @@ using ShiftFlow.Domain.Entities;
 
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
-/// <summary>docs/01-erd-and-schema.md §3-4. Projects → Employers: CASCADE (§4).</summary>
+/// <summary>docs/01-erd-and-schema.md §3-4. Projects → Supervisors: CASCADE (§4).</summary>
 public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
 {
     public void Configure(EntityTypeBuilder<Project> builder)
@@ -25,13 +25,13 @@ public sealed class ProjectConfiguration : IEntityTypeConfiguration<Project>
             .IsRequired()
             .HasColumnType("datetime2(0)");
 
-        builder.HasIndex(p => new { p.EmployerId, p.Name })
+        builder.HasIndex(p => new { p.SupervisorId, p.Name })
             .IsUnique()
-            .HasDatabaseName("UQ_Projects_Employer_Name");
+            .HasDatabaseName("UQ_Projects_Supervisor_Name");
 
-        builder.HasOne(p => p.Employer)
+        builder.HasOne(p => p.Supervisor)
             .WithMany(e => e.Projects)
-            .HasForeignKey(p => p.EmployerId)
+            .HasForeignKey(p => p.SupervisorId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }
