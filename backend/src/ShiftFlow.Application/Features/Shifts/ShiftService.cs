@@ -184,6 +184,7 @@ public sealed class ShiftService
             s.StartUtc,
             s.EndUtc,
             s.Status.ToString(),
+            s.AssignedCallAgentId,
             s.CreatedAtUtc,
             Convert.ToBase64String(s.RowVersion));
 }
