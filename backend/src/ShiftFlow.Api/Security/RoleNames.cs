@@ -9,6 +9,8 @@ namespace ShiftFlow.Api.Security;
 /// </summary>
 public static class RoleNames
 {
+    public const string Manager = nameof(UserRole.Manager);
+
     public const string Supervisor = nameof(UserRole.Supervisor);
 
     public const string CallAgent = nameof(UserRole.CallAgent);

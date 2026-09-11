@@ -467,3 +467,31 @@ BEGIN
     EXEC(N'ALTER TABLE [Users] ADD CONSTRAINT [CK_Users_Role] CHECK ([Role] IN (''Supervisor'', ''CallAgent''))');
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911184111_AddManagerRole'
+)
+BEGIN
+    ALTER TABLE [Users] DROP CONSTRAINT [CK_Users_Role];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911184111_AddManagerRole'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Users] ADD CONSTRAINT [CK_Users_Role] CHECK ([Role] IN (''Manager'', ''Supervisor'', ''CallAgent''))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911184111_AddManagerRole'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260911184111_AddManagerRole', N'10.0.11');
+END;
+GO
