@@ -212,7 +212,8 @@ application-based open shifts.
 ## Acceptance
 
 - Assigning an agent who already has an overlapping shift returns 409.
-- Assigning to a non-`Open` shift returns 409.
+- Assigning to a shift in `Assigned` or `Closed` returns 409.
+- Assigning to a `Released` shift succeeds and sets it back to `Assigned`.
 - `RowVersion` conflict on concurrent assignment returns 409, with a test.
 
 ---
@@ -358,10 +359,9 @@ Let other agents pick up a released shift, reusing `ShiftApplications`.
   revalidated then, not only at apply time.
 - Withdrawal stays unimplemented, as in v1.
 - A Released shift can also be filled directly through the assignment endpoint
-  (V3) without any cover application arriving first. **Open question, not
-  decided here:** does that direct fill need to reject any pending `Cover`
-  applications on the same shift, the way a cover approval rejects competing
-  ones? State the answer in this prompt's phase report before implementing.
+  (V3) without any cover application arriving first. That direct fill rejects
+  all pending `Cover` applications on the same shift with a `DecisionNote`, in
+  the same transaction, exactly as a cover approval rejects its competitors.
 
 ## Acceptance
 
@@ -369,6 +369,9 @@ Let other agents pick up a released shift, reusing `ShiftApplications`.
   note, and the shift shows the covering agent.
 - The original agent's approved leave is untouched by the cover.
 - A concurrency test proves the database guard holds under parallel approval.
+- A direct fill of a `Released` shift with pending `Cover` applications leaves
+  all of them `Rejected` with a `DecisionNote`, in the same transaction as the
+  assignment.
 
 ---
 
@@ -626,6 +629,9 @@ Rating          = 1.0 + 4.0 * AutoRaw          when no evaluation exists
   when no supervisor evaluation exists.
 - If all three automatic components are undefined, no `Ratings` row is written
   for the period; the 3.0 default applies.
+- When **both** Attendance and Punctuality are undefined, no `Ratings` row is
+  written for the period; the 3.0 default applies. Reliability alone is not a
+  sufficient basis for a rating.
 - On time: first heartbeat ≤ shift start + grace (default 5 minutes).
 - Late-notice leave: requested less than 24 hours before shift start, **even if
   approved**.

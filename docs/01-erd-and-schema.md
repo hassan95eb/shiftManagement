@@ -88,7 +88,7 @@ erDiagram
     USERS ||--o| CALLAGENTS  : "Role = CallAgent"
     SUPERVISORS ||--o{ PROJECTS : owns
     PROJECTS ||--o{ SHIFTS : contains
-    PROJECTS }o--o{ CALLAGENTPROJECTS : has
+    PROJECTS ||--o{ CALLAGENTPROJECTS : has
     CALLAGENTS ||--o{ CALLAGENTPROJECTS : "assigned to"
     CALLAGENTS ||--o{ AVAILABILITIES : declares
     CALLAGENTS ||--o{ SHIFTAPPLICATIONS : applies
@@ -597,12 +597,11 @@ Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** م
 گذشته همچنان `Assigned` می‌ماند — غیبت و ساعت حضور همیشه در لحظه‌ی خواندن محاسبه
 می‌شوند، نه با تغییر Status توسط یک Job (بدون Background Job، طبق قانون کلی v2).
 
-> **نکته‌ی باز، هنوز تصمیم‌گیری‌نشده (به V6 موکول شده):** وقتی Supervisor یک شیفت
-> `Released` را با تخصیص مستقیم پر می‌کند در حالی که یک یا چند اپلیکیشن `Cover`
-> در وضعیت `Pending` روی همان شیفت وجود دارد، آیا آن اپلیکیشن‌های Pending باید
-> خودکار `Rejected` شوند (مثل چیزی که تأیید یک Cover با بقیه‌ی Coverها می‌کند)؟
-> این سند آن را حدس نمی‌زند — طبق `docs/04-v2-prompts.md` V6، پاسخ باید پیش از
-> پیاده‌سازی آن پرامپت در گزارش فاز مشخص شود.
+وقتی Supervisor یک شیفت `Released` را با تخصیص مستقیم پر می‌کند در حالی که یک یا
+چند اپلیکیشن `Cover` در وضعیت `Pending` روی همان شیفت وجود دارد، همه‌ی آن
+اپلیکیشن‌های Pending در همان تراکنش با یک `DecisionNote` به `Rejected` تبدیل
+می‌شوند — دقیقاً همان رفتاری که تأیید یک Cover با بقیه‌ی Coverهای رقیب انجام
+می‌دهد (V6).
 
 ---
 
@@ -636,6 +635,9 @@ Rating          = 1.0 + 4.0 * AutoRaw          when no evaluation exists
   when no supervisor evaluation exists.
 - If all three automatic components are undefined, no `Ratings` row is written
   for the period; the 3.0 default applies.
+- When **both** Attendance and Punctuality are undefined, no `Ratings` row is
+  written for the period; the 3.0 default applies. Reliability alone is not a
+  sufficient basis for a rating.
 - On time: first heartbeat ≤ shift start + grace (default 5 minutes).
 - Late-notice leave: requested less than 24 hours before shift start, **even if
   approved**.
