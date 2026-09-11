@@ -94,26 +94,13 @@ public static class AttendanceCalculator
     public static bool IsAbsent(
         Shift shift,
         IEnumerable<AttendanceSession> sessions,
-        DateTime nowUtc,
-        bool isCommitted,
-        bool hasApprovedLeaveOrDowntime) =>
-        isCommitted
-        && nowUtc >= shift.EndUtc
-        && PresentHours(shift, sessions) == 0m
-        && !hasApprovedLeaveOrDowntime;
-
-    public static bool IsAbsent(
-        Shift shift,
-        IEnumerable<AttendanceSession> sessions,
         IEnumerable<AgentRequest> requests,
         DateTime nowUtc,
         bool isCommitted) =>
-        IsAbsent(
-            shift,
-            sessions,
-            nowUtc,
-            isCommitted,
-            requests.Any(r => r.ShiftId == shift.Id && r.Status == AgentRequestStatus.Approved));
+        isCommitted
+        && nowUtc >= shift.EndUtc
+        && PresentHours(shift, sessions) == 0m
+        && ExpectedHours(shift, requests) > 0m;
 
     private static DateTime Earlier(DateTime left, DateTime right) => left <= right ? left : right;
 

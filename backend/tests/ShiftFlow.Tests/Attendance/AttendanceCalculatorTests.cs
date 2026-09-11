@@ -41,20 +41,30 @@ public class AttendanceCalculatorTests
     [Fact]
     public void Ended_committed_shift_with_no_session_and_no_excuse_is_absent()
     {
-        Assert.True(AttendanceCalculator.IsAbsent(Shift(), [], Start.AddHours(9), true, false));
+        Assert.True(AttendanceCalculator.IsAbsent(Shift(), [], [], Start.AddHours(9), true));
     }
 
     [Fact]
     public void Partial_session_is_not_an_absence()
     {
         Assert.False(AttendanceCalculator.IsAbsent(
-            Shift(), [Session(1, 2)], Start.AddHours(9), true, false));
+            Shift(), [Session(1, 2)], [], Start.AddHours(9), true));
     }
 
     [Fact]
-    public void Approved_leave_or_downtime_prevents_absence()
+    public void Partial_downtime_with_zero_presence_is_still_an_absence()
     {
-        Assert.False(AttendanceCalculator.IsAbsent(Shift(), [], Start.AddHours(9), true, true));
+        var shift = Shift();
+        var downtime = new AgentRequest
+        {
+            ShiftId = shift.Id,
+            RequestType = AgentRequestType.Downtime,
+            Status = AgentRequestStatus.Approved,
+            StartUtc = shift.StartUtc,
+            EndUtc = shift.StartUtc.AddMinutes(15),
+        };
+
+        Assert.True(AttendanceCalculator.IsAbsent(shift, [], [downtime], Start.AddHours(9), true));
     }
 
     [Fact]
