@@ -67,9 +67,21 @@ public class ModelMappingTests
     [InlineData(typeof(ShiftApplication), "CallAgentId")]      // second path into ShiftApplications
     [InlineData(typeof(ShiftApplication), "DecidedByUserId")] // decision audit must survive
     [InlineData(typeof(Recommendation), "CallAgentId")]        // second path into Recommendations
+    [InlineData(typeof(Shift), "AssignedCallAgentId")]         // direct assignment (V3)
     public void Every_call_agent_side_fk_is_no_action(Type entity, string fkProperty)
     {
         Assert.Equal("NoAction", DeleteBehaviorOf(Model(), entity, fkProperty));
+    }
+
+    [Fact]
+    public void AssignedCallAgentId_index_is_filtered_to_non_null()
+    {
+        var index = Model().FindEntityType(typeof(Shift))!
+            .GetIndexes()
+            .Single(i => i.GetDatabaseName() == "IX_Shifts_AssignedCallAgentId");
+
+        Assert.Equal(new[] { "AssignedCallAgentId" }, index.Properties.Select(p => p.Name));
+        Assert.Equal("[AssignedCallAgentId] IS NOT NULL", index.GetFilter());
     }
 
     [Fact]

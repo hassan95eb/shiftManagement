@@ -17,6 +17,8 @@ namespace ShiftFlow.Tests.Applications;
 /// they applied, the approval fails and nothing is written — the application
 /// stays Pending and the shift stays Open. Half-open comparison (docs/01 §6), so
 /// a shift that only touches the approved one still approves.
+/// docs/04-v2-prompts.md V3 extends the re-check to a directly-Assigned shift
+/// gained since applying, not just a newly-approved application.
 /// </summary>
 public class ApproveApplication_OverlapRecheckTests
 {
@@ -49,6 +51,31 @@ public class ApproveApplication_OverlapRecheckTests
         // Since applying, Jane was approved for a clashing 12–16 shift elsewhere.
         var clashing = ctx.Db.AddShift(billing.Id, At(12), At(16));
         ctx.Db.AddApplication(clashing.Id, jane.Id, ApplicationStatus.Approved, On(2));
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
+            ServiceFor(ctx, supervisor).ApproveAsync(targetApp.Id, CancellationToken.None));
+
+        var db = ctx.NewContext();
+        Assert.Equal(ApplicationStatus.Pending, (await db.ShiftApplications.SingleAsync(a => a.Id == targetApp.Id)).Status);
+        Assert.Equal(ShiftStatus.Open, (await db.Shifts.SingleAsync(s => s.Id == target.Id)).Status);
+    }
+
+    [Fact]
+    public async Task Approval_fails_when_the_call_agent_gained_an_overlapping_assigned_shift_since_applying()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var support = ctx.Db.AddProject(supervisor.Id, "Support");
+        var billing = ctx.Db.AddProject(supervisor.Id, "Billing");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        ctx.Db.Assign(jane.Id, support.Id);
+        ctx.Db.Assign(jane.Id, billing.Id);
+
+        var target = ctx.Db.AddShift(support.Id, At(10), At(14));
+        var targetApp = ctx.Db.AddApplication(target.Id, jane.Id, ApplicationStatus.Pending, On(1));
+
+        // Since applying, Jane was directly assigned a clashing 12–16 shift elsewhere.
+        ctx.Db.AddShift(billing.Id, At(12), At(16), ShiftStatus.Assigned, jane.Id);
 
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
             ServiceFor(ctx, supervisor).ApproveAsync(targetApp.Id, CancellationToken.None));

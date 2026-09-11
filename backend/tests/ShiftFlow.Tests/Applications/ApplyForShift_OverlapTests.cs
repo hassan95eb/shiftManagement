@@ -15,7 +15,9 @@ namespace ShiftFlow.Tests.Applications;
 /// when the shift overlaps one the CallAgent is already approved for, using the
 /// half-open comparison <c>existing.Start &lt; new.End AND existing.End &gt;
 /// new.Start</c> (docs/01 §6). Adjacent shifts (10–14 and 14–18) share only an
-/// instant, so they do <b>not</b> overlap and are allowed.
+/// instant, so they do <b>not</b> overlap and are allowed. docs/04-v2-prompts.md
+/// V3 extends this rule to a directly-Assigned shift as well, not just an
+/// approved application.
 /// </summary>
 public class ApplyForShift_OverlapTests
 {
@@ -122,6 +124,28 @@ public class ApplyForShift_OverlapTests
             ServiceFor(ctx, callAgent.UserId, callAgent.Id).ApplyAsync(clashingOnBilling.Id, CancellationToken.None));
 
         Assert.Equal(1, await ctx.NewContext().ShiftApplications.CountAsync());
+    }
+
+    [Fact]
+    public async Task A_directly_Assigned_shift_also_blocks_an_overlapping_application()
+    {
+        // docs/04-v2-prompts.md V3: apply rule 5 now also covers a shift the
+        // CallAgent holds through direct assignment, not just an approved
+        // application.
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var callAgent = ctx.Db.AddCallAgent("Jane Doe");
+        ctx.Db.Assign(callAgent.Id, project.Id);
+        ctx.Db.AddAvailability(callAgent.Id, At(0), At(23));
+        ctx.Db.AddShift(project.Id, At(10), At(14), ShiftStatus.Assigned, callAgent.Id);
+
+        var clashingShift = ctx.Db.AddShift(project.Id, At(12), At(16));
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
+            ServiceFor(ctx, callAgent.UserId, callAgent.Id).ApplyAsync(clashingShift.Id, CancellationToken.None));
+
+        Assert.Equal(0, await ctx.NewContext().ShiftApplications.CountAsync());
     }
 
     [Fact]
