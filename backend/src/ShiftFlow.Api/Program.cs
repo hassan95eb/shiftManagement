@@ -36,7 +36,15 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// Only where Kestrel actually has an HTTPS endpoint to redirect to — a local
+// `dotnet run` (launchSettings binds https://localhost:7194). In a container
+// TLS terminates upstream (the compose port map now, the `web`/nginx service
+// later), so there is no HTTPS port and this would only log a misleading
+// "Failed to determine the https port for redirect." on startup.
+if (!app.Configuration.GetValue<bool>("DOTNET_RUNNING_IN_CONTAINER"))
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseCors(CorsExtensions.LocalDevPolicy);
 

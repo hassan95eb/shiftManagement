@@ -1,13 +1,18 @@
 # ---------------------------------------------------------------------------
 # ShiftFlow — Docker Compose
 #
-# Services so far: `db` (SQL Server) and the one-shot `recommender`. The `api`
-# and `web` services are added in the full-compose phase (CLAUDE.md §10 / docs/02
-# §6).
+# Services: `db` (SQL Server), `api` (ASP.NET Core), and the one-shot
+# `recommender`. The `web` (nginx) service is added in the full-compose phase
+# (CLAUDE.md §10 / docs/02 §6).
+#
+#     docker compose up --build        # db + api
+#
+# In Development the api applies migrations and inserts the scenario seed on
+# startup, so a cold start on an empty volume ends with a ready database.
 #
 # `recommender` sits behind a Compose profile so `docker compose up` never
-# starts it. Run it on demand, against a database that already has the schema
-# and seed (the api service or database/*.sql):
+# starts it. Run it on demand, once the api (or database/*.sql) has created the
+# schema and seed:
 #
 #     docker compose run --rm recommender
 # ---------------------------------------------------------------------------
@@ -37,6 +42,31 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    container_name: shiftflow-api
+    depends_on:
+      db:
+        # Not just "started" — `depends_on` alone would let the API race SQL
+        # Server's warm-up and crash on the first migration (CLAUDE.md §11).
+        condition: service_healthy
+    environment:
+      # Development turns on Swagger and the migrate + seed on startup
+      # (DevelopmentDataExtensions). Kestrel binds plain HTTP only.
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      # Both secrets come from .env. The connection string is assembled from
+      # its parts because MSSQL_HOST differs by context: `db` (this compose
+      # network) here, `localhost` for a local `dotnet run`. Inside the network
+      # the db container always listens on 1433 regardless of MSSQL_PORT, which
+      # only maps the host side.
+      ConnectionStrings__Default: "Server=${MSSQL_HOST:-db},1433;Database=${MSSQL_DB:-ShiftFlow};User Id=sa;Password=${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env};TrustServerCertificate=True"
+      Jwt__Key: ${Jwt__Key:?set Jwt__Key in .env}
+    ports:
+      - "${API_PORT:-8080}:8080"
 
   # One-shot applicant recommender. `profiles` keeps it out of `docker compose
   # up`; `docker compose run --rm recommender` enables the profile for that one
