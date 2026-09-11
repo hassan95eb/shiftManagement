@@ -18,7 +18,7 @@ public class ActiveAttendanceTests
             currentUser,
             new AccessScope(currentUser),
             clock,
-            Options.Create(new AttendanceOptions { StalenessThresholdSeconds = thresholdSeconds }));
+            Options.Create(new AttendanceOptions { StalenessSeconds = thresholdSeconds }));
 
     [Fact]
     public async Task Session_older_than_fixed_clock_threshold_is_excluded()

@@ -32,8 +32,10 @@ public static class DependencyInjection
 
         services.AddOptions<AttendanceOptions>()
             .Bind(configuration.GetSection(AttendanceOptions.SectionName))
-            .Validate(o => o.StalenessThresholdSeconds > 0,
-                "Attendance:StalenessThresholdSeconds must be greater than zero.")
+            .Validate(o => o.StalenessSeconds > 0,
+                "Attendance:StalenessSeconds must be greater than zero.")
+            .Validate(o => o.HeartbeatSeconds > 0,
+                "Attendance:HeartbeatSeconds must be greater than zero.")
             .ValidateOnStart();
 
         services.AddOptions<JwtOptions>()

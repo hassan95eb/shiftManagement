@@ -112,7 +112,7 @@ public sealed class AttendanceService
     public async Task<ActiveAttendanceResponse> GetActiveAsync(CancellationToken cancellationToken)
     {
         var now = _clock.UtcNow;
-        var freshSince = now.AddSeconds(-_options.StalenessThresholdSeconds);
+        var freshSince = now.AddSeconds(-_options.StalenessSeconds);
 
         var query = _accessScope.RestrictToOwnSupervisor(
             _db.AttendanceSessions

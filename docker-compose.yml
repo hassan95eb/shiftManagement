@@ -65,7 +65,8 @@ services:
       # only maps the host side.
       ConnectionStrings__Default: "Server=${MSSQL_HOST:-db},1433;Database=${MSSQL_DB:-ShiftFlow};User Id=sa;Password=${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in .env};TrustServerCertificate=True"
       Jwt__Key: ${Jwt__Key:?set Jwt__Key in .env}
-      Attendance__StalenessThresholdSeconds: ${Attendance__StalenessThresholdSeconds:-120}
+      ATTENDANCE__STALENESSSECONDS: ${ATTENDANCE__STALENESSSECONDS:-120}
+      ATTENDANCE__HEARTBEATSECONDS: ${ATTENDANCE__HEARTBEATSECONDS:-60}
     ports:
       - "${API_PORT:-8080}:8080"
 
