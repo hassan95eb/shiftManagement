@@ -11,76 +11,155 @@
 
 ## ۱. ERD
 
+نمودار ASCII زیر فقط **شکل هسته‌ای** (همان چیزی که در v1 بود، با نام‌های جدید) را
+نشان می‌دهد — چهار جدول تازه‌ی v2 (`AttendanceSessions`, `AgentRequests`,
+`SupervisorEvaluations` و FK نال‌پذیر `Shifts.AssignedCallAgentId`) عمداً از این
+اسکچ حذف شده‌اند چون رسم آن‌ها با فلش‌های ASCII باعث تقاطع خط و جاگذاری غلط برچسب
+می‌شد (مثل مشکلی که نسخه‌ی قبلی این سند داشت). مجموعه‌ی کامل روابط، شامل این چهار
+مورد، در نمودار Mermaid زیر آمده است.
+
 ```text
-                                   ┌──────────────┐
-                                   │    Users     │
-                                   │──────────────│
-                                   │ Id (PK)      │
-                                   │ Username (U) │
-                                   │ PasswordHash │
-                                   │ Role         │  Manager|Supervisor|CallAgent
-                                   └──────┬───────┘
-                          1:1 ┌───────────┼───────────┐ 1:1
-                              │           │           │
-                              ▼           │           ▼
-                     ┌────────────────┐   │   ┌────────────────┐
-                     │  Supervisors   │   │   │   CallAgents   │
-                     │────────────────│   │   │────────────────│
-                     │ Id (PK)        │   │   │ Id (PK)        │
-                     │ UserId (FK,U)  │   │   │ UserId (FK,U)  │
-                     │ Name           │   │   │ FullName       │
-                     └───────┬────────┘   │   │ AnnualLeaveDays│
-                             │ 1:N         │   └─┬─┬─┬─┬─┬─┬───┘
-                             ▼             │      │ │ │ │ │ │
-                     ┌────────────────┐    │      │ │ │ │ │ │ 1:N
-                     │    Projects    │    │      │ │ │ │ │ └──►┌──────────────────┐
-                     │────────────────│    │      │ │ │ │ │     │  Availabilities  │
-                     │ Id (PK)        │    │      │ │ │ │ │     │──────────────────│
-                     │ SupervisorId   │    │      │ │ │ │ │     │ CallAgentId (FK) │
-                     │ Name           │    │      │ │ │ │ │     │ StartUtc/EndUtc  │
-                     └───┬────────┬───┘    │      │ │ │ │ │     └──────────────────┘
-                         │       │         │      │ │ │ │ │ 1:N
-                         │  N:N  │         │      │ │ │ │ └──►┌──────────────────┐
-                         │ ┌─────▼─────────▼─┐    │ │ │ │     │     Ratings      │
-                         │ │CallAgentProjects│    │ │ │ │     │──────────────────│
-                         │ │─────────────────│    │ │ │ │     │ CallAgentId (FK) │
-                         │ │CallAgentId(PK,FK)│   │ │ │ │     │ Period (U)       │
-                         │ │ProjectId (PK,FK)│    │ │ │ │     │ Score, Breakdown │
-                         │ └─────────────────┘    │ │ │ │     └──────────────────┘
-                         │ 1:N                    │ │ │ │ 1:N
-                         ▼                        │ │ │ └──►┌──────────────────┐
-                 ┌────────────────┐               │ │ │    │  AgentRequests   │
-                 │     Shifts     │◄──────────────┘ │ │    │──────────────────│
-                 │────────────────│  N:1 (nullable) │ │    │ CallAgentId (FK) │
-                 │ Id (PK)        │  AssignedCallAgentId│  │ ShiftId (FK)     │
-                 │ ProjectId (FK) │                 │ │    │ RequestType      │
-                 │ StartUtc/EndUtc│                 │ │    │ Status           │
-                 │ Status         │◄────────────────┘ │    └──────────────────┘
-                 │ RowVersion     │  1:N (AttendanceSessions.ShiftId)
-                 └─┬────┬────┬───┘                    │ 1:N
-       1:N ┌────────┘    │    └────────┐               └──►┌──────────────────────┐
-           ▼             │ 1:N          ▼                    │ AttendanceSessions   │
-┌──────────────────────┐ │      ┌──────────────────────┐    │──────────────────────│
-│  ShiftApplications   │ │      │   Recommendations    │    │ CallAgentId (FK)     │
-│──────────────────────│ │      │──────────────────────│    │ ShiftId (FK)         │
-│ ShiftId  (FK) ┐      │ │      │ ShiftId  (FK) ┐      │    │ StartedAtUtc         │
-│ CallAgentId(FK)┴ U   │ │      │ CallAgentId(FK)┴ U   │    │ LastSeenUtc          │
-│ Status, Kind         │ │      │ Score                │    │ EndedAtUtc (NULL)    │
-│ AppliedAtUtc         │ │      │ Reason               │    └──────────────────────┘
-│ DecidedByUserId (FK) │ │      │ ComputedAtUtc        │
-│ DecidedAtUtc         │ │      └──────────────────────┘
-│ DecisionNote         │ │               ▲
-└──────────────────────┘ │               │  نوشته می‌شود توسط Python Script
-                          │
-                          ▼ N:N (از دو طرف Supervisor و CallAgent)
-                  ┌──────────────────────┐
-                  │ SupervisorEvaluations│
-                  │──────────────────────│
-                  │ CallAgentId (FK)     │
-                  │ SupervisorId (FK)    │
-                  │ Period (U با هم)     │
-                  │ ScoreValue, Note     │
-                  └──────────────────────┘
+                        ┌──────────────┐
+                        │    Users     │
+                        │──────────────│
+                        │ Id (PK)      │
+                        │ Username (U) │
+                        │ PasswordHash │
+                        │ Role         │  Manager|Supervisor|CallAgent
+                        └──────┬───────┘
+                 1:1 ┌─────────┴─────────┐ 1:1  (Manager: بدون ردیف در این دو جدول)
+                     ▼                   ▼
+             ┌───────────────┐   ┌────────────────┐
+             │  Supervisors  │   │   CallAgents    │
+             │───────────────│   │─────────────────│
+             │ Id (PK)       │   │ Id (PK)         │
+             │ UserId (FK,U) │   │ UserId (FK,U)   │
+             │ Name          │   │ FullName        │
+             └───────┬───────┘   │ AnnualLeaveDays │
+                     │ 1:N       └───┬─────────┬───┘
+                     ▼               │         │ 1:N
+             ┌───────────────┐       │         ▼
+             │   Projects    │       │  ┌──────────────────┐
+             │───────────────│       │  │  Availabilities  │
+             │ Id (PK)       │       │  │──────────────────│
+             │ SupervisorId  │       │  │ CallAgentId (FK) │
+             │ Name          │       │  │ StartUtc/EndUtc  │
+             └───┬───────┬───┘       │  └──────────────────┘
+                 │       │           │
+                 │  N:N  │           │ 1:N
+                 │ ┌─────▼───────────▼┐
+                 │ │  CallAgentProjects│
+                 │ │───────────────────│
+                 │ │ CallAgentId(PK,FK)│
+                 │ │ ProjectId (PK,FK) │
+                 │ └───────────────────┘
+                 │ 1:N                        ┌──────────────────┐
+                 ▼                            │      Ratings     │
+         ┌────────────────┐   CallAgents 1:N  │──────────────────│
+         │     Shifts     │──────────────────►│ CallAgentId (FK) │
+         │────────────────│                   │ Period (U)       │
+         │ Id (PK)        │                   │ Score, Breakdown │
+         │ ProjectId (FK) │                   └──────────────────┘
+         │ StartUtc/EndUtc│
+         │ Status         │   Open|Assigned|Released|Closed
+         │ RowVersion     │
+         └───┬────────┬───┘
+             │ 1:N    │ 1:N
+             ▼        ▼
+┌──────────────────────┐  ┌──────────────────────┐
+│  ShiftApplications   │  │   Recommendations    │
+│──────────────────────│  │──────────────────────│
+│ ShiftId  (FK) ┐      │  │ ShiftId  (FK) ┐      │
+│ CallAgentId(FK)┴ U   │  │ CallAgentId(FK)┴ U   │
+│ Status, Kind         │  │ Score                │
+│ AppliedAtUtc         │  │ Reason               │
+│ DecidedByUserId (FK) │  │ ComputedAtUtc        │
+│ DecidedAtUtc         │  └──────────────────────┘
+│ DecisionNote         │            ▲
+└──────────────────────┘            │  نوشته می‌شود توسط Python Script
+```
+
+نمودار کامل — شامل `AssignedCallAgentId`، `AttendanceSessions`، `AgentRequests` و
+`SupervisorEvaluations`:
+
+```mermaid
+erDiagram
+    USERS ||--o| SUPERVISORS : "Role = Supervisor"
+    USERS ||--o| CALLAGENTS  : "Role = CallAgent"
+    SUPERVISORS ||--o{ PROJECTS : owns
+    PROJECTS ||--o{ SHIFTS : contains
+    PROJECTS }o--o{ CALLAGENTPROJECTS : has
+    CALLAGENTS ||--o{ CALLAGENTPROJECTS : "assigned to"
+    CALLAGENTS ||--o{ AVAILABILITIES : declares
+    CALLAGENTS ||--o{ SHIFTAPPLICATIONS : applies
+    SHIFTS ||--o{ SHIFTAPPLICATIONS : receives
+    SHIFTS ||--o{ RECOMMENDATIONS : "scored for"
+    CALLAGENTS ||--o{ RECOMMENDATIONS : "ranked in"
+    CALLAGENTS |o--o{ SHIFTS : "AssignedCallAgentId (nullable)"
+    CALLAGENTS ||--o{ AGENTREQUESTS : submits
+    SHIFTS ||--o{ AGENTREQUESTS : "leave/downtime for"
+    CALLAGENTS ||--o{ ATTENDANCESESSIONS : records
+    SHIFTS ||--o{ ATTENDANCESESSIONS : during
+    CALLAGENTS ||--o{ SUPERVISOREVALUATIONS : "evaluated as subject"
+    SUPERVISORS ||--o{ SUPERVISOREVALUATIONS : "evaluates as author"
+    CALLAGENTS ||--o{ RATINGS : scored
+
+    USERS {
+        int Id PK
+        string Username UK
+        string Role
+    }
+    SUPERVISORS {
+        int Id PK
+        int UserId FK "unique"
+    }
+    CALLAGENTS {
+        int Id PK
+        int UserId FK "unique"
+        int AnnualLeaveDays
+    }
+    PROJECTS {
+        int Id PK
+        int SupervisorId FK
+    }
+    SHIFTS {
+        int Id PK
+        int ProjectId FK
+        string Status
+        int AssignedCallAgentId FK "nullable"
+    }
+    SHIFTAPPLICATIONS {
+        int Id PK
+        int ShiftId FK
+        int CallAgentId FK
+        string Status
+        string Kind
+    }
+    AGENTREQUESTS {
+        int Id PK
+        int CallAgentId FK
+        int ShiftId FK
+        string RequestType
+        string Status
+    }
+    ATTENDANCESESSIONS {
+        int Id PK
+        int CallAgentId FK
+        int ShiftId FK
+        datetime EndedAtUtc "nullable, open when null"
+    }
+    SUPERVISOREVALUATIONS {
+        int Id PK
+        int CallAgentId FK
+        int SupervisorId FK
+        string Period "unique together with CallAgentId+SupervisorId"
+    }
+    RATINGS {
+        int Id PK
+        int CallAgentId FK
+        string Period "unique together with CallAgentId"
+        string Breakdown
+    }
 ```
 
 **خلاصه‌ی روابط تازه یا تغییریافته نسبت به v1:**
@@ -245,7 +324,7 @@ Exclusion Constraint ندارد).
 | StartUtc | DATETIME2(0) | ✗ | |
 | EndUtc | DATETIME2(0) | ✗ | |
 | Status | NVARCHAR(16) | ✗ | `Open` \| `Assigned` \| `Released` \| `Closed`، پیش‌فرض `Open` |
-| AssignedCallAgentId | INT | ✓ | FK → CallAgents، **NO ACTION** — کارشناسی که مستقیم تخصیص گرفته |
+| AssignedCallAgentId | INT | ✓ | FK → CallAgents، **NO ACTION** — کارشناسِ تخصیص‌یافته، چه با تخصیص مستقیم و چه از طریق تأیید Cover |
 | CreatedAtUtc | DATETIME2(0) | ✗ | |
 | RowVersion | ROWVERSION | ✗ | **قفل خوش‌بینانه** |
 
@@ -297,7 +376,7 @@ CONSTRAINT CK_ShiftApplications_Kind   CHECK (Kind IN ('Extra','Cover'))
 |---|---|---|---|
 | Id | INT IDENTITY | ✗ | PK |
 | CallAgentId | INT | ✗ | FK → CallAgents، **NO ACTION** |
-| ShiftId | INT | ✗ | FK → Shifts، CASCADE (مسیر Supervisor→Project→Shift) |
+| ShiftId | INT | ✗ | FK → Shifts، **NO ACTION** |
 | RequestType | NVARCHAR(16) | ✗ | `Leave` \| `Downtime` |
 | RequestedAtUtc | DATETIME2(0) | ✗ | برای قاعده‌ی «اطلاع دیرهنگام» (کمتر از ۲۴ ساعت) |
 | StartUtc | DATETIME2(0) | ✗ | |
@@ -314,10 +393,25 @@ CONSTRAINT CK_AgentRequests_Status      CHECK (Status IN ('Pending','Approved','
 CONSTRAINT CK_AgentRequests_Range       CHECK (EndUtc > StartUtc)
 ```
 
+و محافظ Race Condition این جدول:
+
+```sql
+CREATE UNIQUE INDEX UX_AgentRequests_OneApprovedLeave
+ON AgentRequests (ShiftId)
+WHERE Status = 'Approved' AND RequestType = 'Leave';
+```
+
+فیلتر فقط روی `Leave` است — چند ردیف `Downtime` تأییدشده روی یک شیفت کاملاً مجاز
+است؛ فقط دو مرخصی تأییدشده روی یک شیفت معنا ندارد.
+
 یک جدول برای هر دو نوع درخواست (مرخصی و عدم‌حضور برنامه‌ریزی‌شده)، به‌جای دو جدول
 جدا — چون هر دو دقیقاً همان شکل «یک بازه، وابسته به یک شیفت، با تأیید/رد سرپرست»
 را دارند. تفکیک منطق (سهمیه‌ی مرخصی در برابر سقف ماهانه‌ی Downtime) در Application
 است، نه در اسکیما.
+
+هر دو FK این جدول عمداً `NO ACTION` هستند — درست مثل `AttendanceSessions` — چون
+این جدول هم ورودی مستقیم محاسبه‌ی Rating است و حذف شیفت نباید سابقه‌ی درخواست را
+پاک کند.
 
 **مانده‌ی مرخصی محاسبه می‌شود، ذخیره نمی‌شود:**
 `AnnualLeaveDays منهای مجموع روزهای مرخصیِ تأییدشده در سال جلالی جاری`.
@@ -376,7 +470,7 @@ CONSTRAINT CK_SupervisorEvaluations_Note CHECK (LEN(Note) > 0)
 |---|---|---|---|
 | Id | INT IDENTITY | ✗ | PK |
 | CallAgentId | INT | ✗ | FK → CallAgents |
-| Period | CHAR(7) | ✗ | فرمت `2026-08` |
+| Period | NVARCHAR(7) | ✗ | فرمت `2026-08` — هم‌نوع با `SupervisorEvaluations.Period` (V8) |
 | Score | DECIMAL(2,1) | ✗ | ۱.۰ تا ۵.۰ |
 | Breakdown | NVARCHAR(400) | ✓ | رشته‌ی قابل‌ردیابی اجزای محاسبه (پیوست A) |
 | CreatedAtUtc | DATETIME2(0) | ✗ | |
@@ -415,9 +509,10 @@ CONSTRAINT CK_Recommendations_Score CHECK (Score BETWEEN 0 AND 100)
 
 قاعده‌ی ساده‌ی v1 بدون تغییر پابرجاست: مسیر حذف از سمت **Supervisor → Project →
 Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** می‌آید `NO ACTION` است.
-دو جدول جدید (`AttendanceSessions`, `SupervisorEvaluations`) که از هر دو سمت FK
-دارند، همیشه سمت مرتبط به عملکرد/امتیاز فرد را `NO ACTION` نگه می‌دارند تا سابقه
-حذف نشود.
+سه جدول جدید (`AttendanceSessions`, `AgentRequests`, `SupervisorEvaluations`)
+ورودی مستقیم محاسبه‌ی Rating یا سابقه‌ی عملکرد فرد هستند، پس **هر دو** FK آن‌ها
+`NO ACTION` است — حتی طرفی که معمولاً روی مسیر Cascade قرار می‌گرفت (`ShiftId` یا
+`SupervisorId`) — تا حذف یک شیفت یا حساب کاربری، سابقه را بی‌صدا پاک نکند.
 
 | FK | رفتار | دلیل |
 |---|---|---|
@@ -435,7 +530,7 @@ Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** م
 | Recommendations → Shifts | CASCADE | مسیر اول |
 | **Recommendations → CallAgents** | **NO ACTION** | مسیر دوم |
 | Shifts → CallAgents (AssignedCallAgentId) | **NO ACTION** | سمت CallAgent |
-| AgentRequests → Shifts | CASCADE | مسیر اصلی |
+| **AgentRequests → Shifts** | **NO ACTION** | مثل AttendanceSessions؛ ورودی Rating است، نباید با حذف شیفت پاک شود |
 | **AgentRequests → CallAgents** | **NO ACTION** | سمت CallAgent |
 | AgentRequests → Users (DecidedBy) | NO ACTION | تاریخچه‌ی تصمیم |
 | **AttendanceSessions → Shifts** | **NO ACTION** | سابقه‌ی حضور نباید با حذف شیفت پاک شود |
@@ -460,7 +555,8 @@ Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** م
 | `IX_Recommendations_Shift_Score` | `(ShiftId, Score DESC)` | خواندن رتبه‌بندی به ترتیب امتیاز |
 | `IX_AttendanceSessions_CallAgent_StartedAtUtc` | `(CallAgentId, StartedAtUtc)` | تاریخچه‌ی حضور یک کارشناس |
 | `IX_AttendanceSessions_Open` | `(CallAgentId, ShiftId)` WHERE `EndedAtUtc IS NULL` | یافتن/استفاده‌ی مجدد نشست باز همان شیفت |
-| `IX_AgentRequests_CallAgent_Status` | `(CallAgentId, RequestType, Status)` | مانده‌ی مرخصی، سقف ماهانه‌ی Downtime |
+| `IX_AgentRequests_CallAgent_Type_Status` | `(CallAgentId, RequestType, Status)` | مانده‌ی مرخصی، سقف ماهانه‌ی Downtime |
+| `UX_AgentRequests_OneApprovedLeave` | `(ShiftId)` WHERE `Status = 'Approved' AND RequestType = 'Leave'` | جلوگیری از دو مرخصی تأییدشده روی یک شیفت (Race Condition) |
 | `IX_SupervisorEvaluations_CallAgent_Period` | `(CallAgentId, Period)` INCLUDE `(ScoreValue)` | میانگین ارزیابی‌های یک دوره برای موتور Rating |
 
 ---
@@ -468,19 +564,21 @@ Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** م
 ## ۷. ماشین حالت شیفت
 
 ```text
-                 ┌──────────────────────────┐
-                 │  Assignment API (Sup.)    │
-                 ▼                          │
-   ┌──────┐   Open → Assigned        Assigned → Open   ┌──────────┐
-   │ Open │◄──────────────────────────────────────────►│ Assigned │
-   └──┬───┘                                             └────┬─────┘
-      │ Application approval                                 │ Leave approval (V5)
-      │ (Extra, Open → Closed)                                ▼
-      │                                                  ┌──────────┐
-      ▼                                                  │ Released │
-  ┌────────┐                                             └────┬─────┘
-  │ Closed │                        Cover approval (V6)        │
-  └────────┘                        Released → Assigned ◄──────┘
+                Open → Assigned                Assigned → Released
+              (assignment API)                    (leave approval, V5)
+   ┌──────┐──────────────────────►┌──────────┐──────────────────────►┌──────────┐
+   │ Open │                       │ Assigned │                       │ Released │
+   └──┬───┘◄──────────────────────└──────────┘◄──────────────────────└──────────┘
+      │      Assigned → Open                    Released → Assigned
+      │      (assignment API, DELETE —          (assignment API direct fill,
+      │       only while no attendance exists)   OR cover approval, V6)
+      │
+      │ Application approval
+      │ (Kind = Extra, Open → Closed)
+      ▼
+  ┌────────┐
+  │ Closed │   ← reachable ONLY from Open, only through Extra approval.
+  └────────┘     No other transition leads here.
 ```
 
 | گذار | چه کسی مالک این عملیات است |
@@ -489,14 +587,22 @@ Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** م
 | `Assigned → Open` | `DELETE /api/shifts/{id}/assignment` — فقط اگر هیچ `AttendanceSessions` برای آن شیفت ثبت نشده |
 | `Open → Closed` | تراکنش تأیید اپلیکیشن `Kind = 'Extra'` (بند ۹) |
 | `Assigned → Released` | تأیید درخواست مرخصی (`AgentRequests`, V5) در همان تراکنش |
-| `Released → Assigned` | تأیید اپلیکیشن `Kind = 'Cover'` (V6)، با `AssignedCallAgentId` جدید |
+| `Released → Assigned` | همان `POST /api/shifts/{id}/assignment` (تخصیص مستقیم توسط Supervisor، وقتی هیچ Cover‌ای نمی‌رسد، V3) **یا** تراکنش تأیید اپلیکیشن `Kind = 'Cover'` (V6) |
 
 قاعده‌ی سخت: **`Status` هیچ‌وقت مستقیم از طریق یک Endpoint بروزرسانی عمومی قابل
-تنظیم نیست** — هر گذار دقیقاً به یک عملیات تعلق دارد که در جدول بالا آمده. برخلاف
-گمانی که ممکن است پیش بیاید، هیچ وضعیت `Completed`/`NoShow` اضافه نشده: یک شیفت
-`Assigned` که زمانش گذشته همچنان `Assigned` می‌ماند — غیبت و ساعت حضور همیشه در لحظه‌ی
-خواندن محاسبه می‌شوند، نه با تغییر Status توسط یک Job (بدون Background Job، طبق
-قانون کلی v2).
+تنظیم نیست** — هر گذار دقیقاً به یک یا دو عملیات مشخص تعلق دارد که در جدول بالا
+آمده. `Closed` **فقط و فقط** از `Open` و فقط از طریق تأیید اپلیکیشن `Extra` قابل
+دسترسی است؛ هیچ گذار دیگری به `Closed` ختم نمی‌شود. برخلاف گمانی که ممکن است پیش
+بیاید، هیچ وضعیت `Completed`/`NoShow` اضافه نشده: یک شیفت `Assigned` که زمانش
+گذشته همچنان `Assigned` می‌ماند — غیبت و ساعت حضور همیشه در لحظه‌ی خواندن محاسبه
+می‌شوند، نه با تغییر Status توسط یک Job (بدون Background Job، طبق قانون کلی v2).
+
+> **نکته‌ی باز، هنوز تصمیم‌گیری‌نشده (به V6 موکول شده):** وقتی Supervisor یک شیفت
+> `Released` را با تخصیص مستقیم پر می‌کند در حالی که یک یا چند اپلیکیشن `Cover`
+> در وضعیت `Pending` روی همان شیفت وجود دارد، آیا آن اپلیکیشن‌های Pending باید
+> خودکار `Rejected` شوند (مثل چیزی که تأیید یک Cover با بقیه‌ی Coverها می‌کند)؟
+> این سند آن را حدس نمی‌زند — طبق `docs/04-v2-prompts.md` V6، پاسخ باید پیش از
+> پیاده‌سازی آن پرامپت در گزارش فاز مشخص شود.
 
 ---
 
@@ -511,7 +617,7 @@ ExpectedHours   = committed shift hours
                   - approved downtime hours
 
 Attendance      = min(PresentHours / ExpectedHours, 1)
-Punctuality     = OnTimeShifts / AttendedShifts          (0 when AttendedShifts = 0)
+Punctuality     = OnTimeShifts / AttendedShifts
 Reliability     = max(1 - (UnexcusedAbsences + LateNoticeLeaves)
                           / CommittedShifts, 0)
 
@@ -522,6 +628,14 @@ Rating          = 1.0 + 4.0 * (0.50*AutoRaw + 0.50*SupRaw)
 Rating          = 1.0 + 4.0 * AutoRaw          when no evaluation exists
 ```
 
+- A component whose denominator is zero is **undefined**, not zero: Attendance
+  is undefined when `ExpectedHours = 0`; Punctuality is undefined when
+  `AttendedShifts = 0`.
+- An undefined component is dropped from `AutoRaw` and the remaining automatic
+  weights are renormalized proportionally — the same technique already used
+  when no supervisor evaluation exists.
+- If all three automatic components are undefined, no `Ratings` row is written
+  for the period; the 3.0 default applies.
 - On time: first heartbeat ≤ shift start + grace (default 5 minutes).
 - Late-notice leave: requested less than 24 hours before shift start, **even if
   approved**.
@@ -537,7 +651,9 @@ Attendance 152/160h -> 0.475 | Punctuality 18/20 -> 0.270 | Reliability 1 absenc
 ```
 
 ASCII `->`, components at 3 dp, Rating at 1 dp. When no evaluation exists, the
-`Supervisor` segment is replaced by `Supervisor none -> normalized`.
+`Supervisor` segment is replaced by `Supervisor none -> normalized`. When a
+component's denominator is zero, its own segment is replaced the same way:
+`Attendance n/a -> normalized` or `Punctuality n/a -> normalized`.
 
 ### Score — shape unchanged from v1
 
