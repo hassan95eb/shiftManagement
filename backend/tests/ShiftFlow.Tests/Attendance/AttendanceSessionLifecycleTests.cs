@@ -174,4 +174,24 @@ public class AttendanceSessionLifecycleTests
 
         Assert.False(await ctx.NewContext().AttendanceSessions.AnyAsync());
     }
+
+    [Fact]
+    public async Task Released_shift_does_not_open_a_session_for_its_former_assignee()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        var now = new DateTime(2026, 7, 1, 10, 0, 0, DateTimeKind.Utc);
+        ctx.Db.AddShift(
+            project.Id, now.AddHours(-1), now.AddHours(1), ShiftStatus.Released, agent.Id);
+        var service = ServiceFor(
+            ctx,
+            StubCurrentUser.CallAgent(agent.UserId, agent.Id),
+            new TestClock(now));
+
+        await service.OpenForLoginAsync(agent.Id, CancellationToken.None);
+
+        Assert.False(await ctx.NewContext().AttendanceSessions.AnyAsync());
+    }
 }
