@@ -2,7 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using ShiftFlow.Application.Features.Applications;
 using ShiftFlow.Application.Features.Auth;
 using ShiftFlow.Application.Features.Availabilities;
-using ShiftFlow.Application.Features.Experts;
+using ShiftFlow.Application.Features.CallAgents;
 using ShiftFlow.Application.Features.Projects;
 using ShiftFlow.Application.Features.Recommendations;
 using ShiftFlow.Application.Features.Shifts;
@@ -19,8 +19,8 @@ public static class DependencyInjection
     {
         services.AddScoped<AuthService>();
         services.AddScoped<ProjectService>();
-        services.AddScoped<ExpertService>();
-        services.AddScoped<ExpertProjectService>();
+        services.AddScoped<CallAgentService>();
+        services.AddScoped<CallAgentProjectService>();
         services.AddScoped<AvailabilityService>();
         services.AddScoped<ShiftService>();
         services.AddScoped<OpenShiftService>();

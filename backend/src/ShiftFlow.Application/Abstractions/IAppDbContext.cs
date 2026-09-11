@@ -15,13 +15,13 @@ public interface IAppDbContext
 {
     DbSet<User> Users { get; }
 
-    DbSet<Employer> Employers { get; }
+    DbSet<Supervisor> Supervisors { get; }
 
-    DbSet<Expert> Experts { get; }
+    DbSet<CallAgent> CallAgents { get; }
 
     DbSet<Project> Projects { get; }
 
-    DbSet<ExpertProject> ExpertProjects { get; }
+    DbSet<CallAgentProject> CallAgentProjects { get; }
 
     DbSet<Availability> Availabilities { get; }
 
@@ -29,7 +29,7 @@ public interface IAppDbContext
 
     DbSet<ShiftApplication> ShiftApplications { get; }
 
-    DbSet<ExpertRating> ExpertRatings { get; }
+    DbSet<Rating> Ratings { get; }
 
     DbSet<Recommendation> Recommendations { get; }
 

@@ -30,22 +30,22 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CallAgentId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2(0)");
 
                     b.Property<DateTime>("EndUtc")
                         .HasColumnType("datetime2(0)");
 
-                    b.Property<int>("ExpertId")
-                        .HasColumnType("int");
-
                     b.Property<DateTime>("StartUtc")
                         .HasColumnType("datetime2(0)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExpertId", "StartUtc", "EndUtc")
-                        .HasDatabaseName("IX_Availabilities_Expert_Range");
+                    b.HasIndex("CallAgentId", "StartUtc", "EndUtc")
+                        .HasDatabaseName("IX_Availabilities_CallAgent_Range");
 
                     b.ToTable("Availabilities", null, t =>
                         {
@@ -53,35 +53,7 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                         });
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.Employer", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2(0)");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<int>("UserId")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId")
-                        .IsUnique()
-                        .HasDatabaseName("UQ_Employers_UserId");
-
-                    b.ToTable("Employers", (string)null);
-                });
-
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.Expert", b =>
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.CallAgent", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -109,14 +81,14 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("UserId")
                         .IsUnique()
-                        .HasDatabaseName("UQ_Experts_UserId");
+                        .HasDatabaseName("UQ_CallAgents_UserId");
 
-                    b.ToTable("Experts", (string)null);
+                    b.ToTable("CallAgents", (string)null);
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.ExpertProject", b =>
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.CallAgentProject", b =>
                 {
-                    b.Property<int>("ExpertId")
+                    b.Property<int>("CallAgentId")
                         .HasColumnType("int");
 
                     b.Property<int>("ProjectId")
@@ -125,47 +97,12 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("AssignedAtUtc")
                         .HasColumnType("datetime2(0)");
 
-                    b.HasKey("ExpertId", "ProjectId");
+                    b.HasKey("CallAgentId", "ProjectId");
 
                     b.HasIndex("ProjectId")
-                        .HasDatabaseName("IX_ExpertProjects_ProjectId");
+                        .HasDatabaseName("IX_CallAgentProjects_ProjectId");
 
-                    b.ToTable("ExpertProjects", (string)null);
-                });
-
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.ExpertRating", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAtUtc")
-                        .HasColumnType("datetime2(0)");
-
-                    b.Property<int>("ExpertId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Period")
-                        .IsRequired()
-                        .HasMaxLength(7)
-                        .HasColumnType("char(7)")
-                        .IsFixedLength();
-
-                    b.Property<decimal>("Score")
-                        .HasColumnType("decimal(2,1)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("ExpertId", "Period")
-                        .IsUnique()
-                        .HasDatabaseName("UQ_ExpertRatings_Expert_Period");
-
-                    b.ToTable("ExpertRatings", null, t =>
-                        {
-                            t.HasCheckConstraint("CK_ExpertRatings_Score", "[Score] BETWEEN 1.0 AND 5.0");
-                        });
+                    b.ToTable("CallAgentProjects", (string)null);
                 });
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.Project", b =>
@@ -179,9 +116,6 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2(0)");
 
-                    b.Property<int>("EmployerId")
-                        .HasColumnType("int");
-
                     b.Property<bool>("IsActive")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -192,13 +126,51 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("nvarchar(128)");
 
+                    b.Property<int>("SupervisorId")
+                        .HasColumnType("int");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("EmployerId", "Name")
+                    b.HasIndex("SupervisorId", "Name")
                         .IsUnique()
-                        .HasDatabaseName("UQ_Projects_Employer_Name");
+                        .HasDatabaseName("UQ_Projects_Supervisor_Name");
 
                     b.ToTable("Projects", (string)null);
+                });
+
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.Rating", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("CallAgentId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<string>("Period")
+                        .IsRequired()
+                        .HasMaxLength(7)
+                        .HasColumnType("char(7)")
+                        .IsFixedLength();
+
+                    b.Property<decimal>("Score")
+                        .HasColumnType("decimal(2,1)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CallAgentId", "Period")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_Ratings_CallAgent_Period");
+
+                    b.ToTable("Ratings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Ratings_Score", "[Score] BETWEEN 1.0 AND 5.0");
+                        });
                 });
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.Recommendation", b =>
@@ -209,11 +181,11 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("CallAgentId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("ComputedAtUtc")
                         .HasColumnType("datetime2(0)");
-
-                    b.Property<int>("ExpertId")
-                        .HasColumnType("int");
 
                     b.Property<string>("Reason")
                         .IsRequired()
@@ -228,11 +200,11 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExpertId");
+                    b.HasIndex("CallAgentId");
 
-                    b.HasIndex("ShiftId", "ExpertId")
+                    b.HasIndex("ShiftId", "CallAgentId")
                         .IsUnique()
-                        .HasDatabaseName("UQ_Recommendations_Shift_Expert");
+                        .HasDatabaseName("UQ_Recommendations_Shift_CallAgent");
 
                     b.HasIndex("ShiftId", "Score")
                         .IsDescending(false, true)
@@ -304,6 +276,9 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("AppliedAtUtc")
                         .HasColumnType("datetime2(0)");
 
+                    b.Property<int>("CallAgentId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime?>("DecidedAtUtc")
                         .HasColumnType("datetime2(0)");
 
@@ -313,9 +288,6 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.Property<string>("DecisionNote")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
-
-                    b.Property<int>("ExpertId")
-                        .HasColumnType("int");
 
                     b.Property<int>("ShiftId")
                         .HasColumnType("int");
@@ -334,14 +306,14 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                         .HasDatabaseName("UX_ShiftApplications_OneApproved")
                         .HasFilter("[Status] = 'Approved'");
 
-                    b.HasIndex("ExpertId", "Status")
-                        .HasDatabaseName("IX_ShiftApplications_Expert_Status");
+                    b.HasIndex("CallAgentId", "Status")
+                        .HasDatabaseName("IX_ShiftApplications_CallAgent_Status");
 
-                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("ExpertId", "Status"), new[] { "ShiftId" });
+                    SqlServerIndexBuilderExtensions.IncludeProperties(b.HasIndex("CallAgentId", "Status"), new[] { "ShiftId" });
 
-                    b.HasIndex("ShiftId", "ExpertId")
+                    b.HasIndex("ShiftId", "CallAgentId")
                         .IsUnique()
-                        .HasDatabaseName("UQ_ShiftApplications_Shift_Expert");
+                        .HasDatabaseName("UQ_ShiftApplications_Shift_CallAgent");
 
                     b.HasIndex("ShiftId", "Status")
                         .HasDatabaseName("IX_ShiftApplications_Shift_Status");
@@ -350,6 +322,34 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                         {
                             t.HasCheckConstraint("CK_ShiftApplications_Status", "[Status] IN ('Pending', 'Approved', 'Rejected')");
                         });
+                });
+
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.Supervisor", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2(0)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId")
+                        .IsUnique()
+                        .HasDatabaseName("UQ_Supervisors_UserId");
+
+                    b.ToTable("Supervisors", (string)null);
                 });
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.User", b =>
@@ -393,89 +393,78 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
                     b.ToTable("Users", null, t =>
                         {
-                            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Employer', 'Expert')");
+                            t.HasCheckConstraint("CK_Users_Role", "[Role] IN ('Supervisor', 'CallAgent')");
                         });
                 });
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.Availability", b =>
                 {
-                    b.HasOne("ShiftFlow.Domain.Entities.Expert", "Expert")
+                    b.HasOne("ShiftFlow.Domain.Entities.CallAgent", "CallAgent")
                         .WithMany("Availabilities")
-                        .HasForeignKey("ExpertId")
+                        .HasForeignKey("CallAgentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Expert");
+                    b.Navigation("CallAgent");
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.Employer", b =>
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.CallAgent", b =>
                 {
                     b.HasOne("ShiftFlow.Domain.Entities.User", "User")
-                        .WithOne("Employer")
-                        .HasForeignKey("ShiftFlow.Domain.Entities.Employer", "UserId")
+                        .WithOne("CallAgent")
+                        .HasForeignKey("ShiftFlow.Domain.Entities.CallAgent", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.Expert", b =>
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.CallAgentProject", b =>
                 {
-                    b.HasOne("ShiftFlow.Domain.Entities.User", "User")
-                        .WithOne("Expert")
-                        .HasForeignKey("ShiftFlow.Domain.Entities.Expert", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.ExpertProject", b =>
-                {
-                    b.HasOne("ShiftFlow.Domain.Entities.Expert", "Expert")
-                        .WithMany("ExpertProjects")
-                        .HasForeignKey("ExpertId")
+                    b.HasOne("ShiftFlow.Domain.Entities.CallAgent", "CallAgent")
+                        .WithMany("CallAgentProjects")
+                        .HasForeignKey("CallAgentId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("ShiftFlow.Domain.Entities.Project", "Project")
-                        .WithMany("ExpertProjects")
+                        .WithMany("CallAgentProjects")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.Navigation("Expert");
+                    b.Navigation("CallAgent");
 
                     b.Navigation("Project");
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.ExpertRating", b =>
-                {
-                    b.HasOne("ShiftFlow.Domain.Entities.Expert", "Expert")
-                        .WithMany("ExpertRatings")
-                        .HasForeignKey("ExpertId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Expert");
-                });
-
             modelBuilder.Entity("ShiftFlow.Domain.Entities.Project", b =>
                 {
-                    b.HasOne("ShiftFlow.Domain.Entities.Employer", "Employer")
+                    b.HasOne("ShiftFlow.Domain.Entities.Supervisor", "Supervisor")
                         .WithMany("Projects")
-                        .HasForeignKey("EmployerId")
+                        .HasForeignKey("SupervisorId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Employer");
+                    b.Navigation("Supervisor");
+                });
+
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.Rating", b =>
+                {
+                    b.HasOne("ShiftFlow.Domain.Entities.CallAgent", "CallAgent")
+                        .WithMany("Ratings")
+                        .HasForeignKey("CallAgentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CallAgent");
                 });
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.Recommendation", b =>
                 {
-                    b.HasOne("ShiftFlow.Domain.Entities.Expert", "Expert")
+                    b.HasOne("ShiftFlow.Domain.Entities.CallAgent", "CallAgent")
                         .WithMany("Recommendations")
-                        .HasForeignKey("ExpertId")
+                        .HasForeignKey("CallAgentId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
@@ -485,7 +474,7 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("Expert");
+                    b.Navigation("CallAgent");
 
                     b.Navigation("Shift");
                 });
@@ -503,16 +492,16 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.ShiftApplication", b =>
                 {
+                    b.HasOne("ShiftFlow.Domain.Entities.CallAgent", "CallAgent")
+                        .WithMany("ShiftApplications")
+                        .HasForeignKey("CallAgentId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
                     b.HasOne("ShiftFlow.Domain.Entities.User", "DecidedByUser")
                         .WithMany("DecidedApplications")
                         .HasForeignKey("DecidedByUserId")
                         .OnDelete(DeleteBehavior.NoAction);
-
-                    b.HasOne("ShiftFlow.Domain.Entities.Expert", "Expert")
-                        .WithMany("ShiftApplications")
-                        .HasForeignKey("ExpertId")
-                        .OnDelete(DeleteBehavior.NoAction)
-                        .IsRequired();
 
                     b.HasOne("ShiftFlow.Domain.Entities.Shift", "Shift")
                         .WithMany("ShiftApplications")
@@ -520,25 +509,31 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.Navigation("DecidedByUser");
+                    b.Navigation("CallAgent");
 
-                    b.Navigation("Expert");
+                    b.Navigation("DecidedByUser");
 
                     b.Navigation("Shift");
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.Employer", b =>
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.Supervisor", b =>
                 {
-                    b.Navigation("Projects");
+                    b.HasOne("ShiftFlow.Domain.Entities.User", "User")
+                        .WithOne("Supervisor")
+                        .HasForeignKey("ShiftFlow.Domain.Entities.Supervisor", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
-            modelBuilder.Entity("ShiftFlow.Domain.Entities.Expert", b =>
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.CallAgent", b =>
                 {
                     b.Navigation("Availabilities");
 
-                    b.Navigation("ExpertProjects");
+                    b.Navigation("CallAgentProjects");
 
-                    b.Navigation("ExpertRatings");
+                    b.Navigation("Ratings");
 
                     b.Navigation("Recommendations");
 
@@ -547,7 +542,7 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ShiftFlow.Domain.Entities.Project", b =>
                 {
-                    b.Navigation("ExpertProjects");
+                    b.Navigation("CallAgentProjects");
 
                     b.Navigation("Shifts");
                 });
@@ -559,13 +554,18 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.Navigation("ShiftApplications");
                 });
 
+            modelBuilder.Entity("ShiftFlow.Domain.Entities.Supervisor", b =>
+                {
+                    b.Navigation("Projects");
+                });
+
             modelBuilder.Entity("ShiftFlow.Domain.Entities.User", b =>
                 {
+                    b.Navigation("CallAgent");
+
                     b.Navigation("DecidedApplications");
 
-                    b.Navigation("Employer");
-
-                    b.Navigation("Expert");
+                    b.Navigation("Supervisor");
                 });
 #pragma warning restore 612, 618
         }

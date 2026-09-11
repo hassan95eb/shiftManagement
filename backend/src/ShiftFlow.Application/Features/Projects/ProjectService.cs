@@ -9,11 +9,11 @@ using ShiftFlow.Domain.Exceptions;
 namespace ShiftFlow.Application.Features.Projects;
 
 /// <summary>
-/// Employer-facing project use cases. Every method is scoped to
-/// <see cref="ICurrentUser.RequireEmployerId"/>: a project belonging to another
-/// employer is treated exactly like a project that does not exist
+/// Supervisor-facing project use cases. Every method is scoped to
+/// <see cref="ICurrentUser.RequireSupervisorId"/>: a project belonging to another
+/// supervisor is treated exactly like a project that does not exist
 /// (<see cref="NotFoundException"/>), so the caller cannot probe for other
-/// employers' ids (CLAUDE.md §7).
+/// supervisors' ids (CLAUDE.md §7).
 /// </summary>
 public sealed class ProjectService
 {
@@ -30,14 +30,14 @@ public sealed class ProjectService
 
     public async Task<ProjectResponse> CreateAsync(CreateProjectRequest request, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
         var name = ProjectRequestValidator.ValidateAndNormalize(request);
 
-        await GuardNameIsFreeAsync(employerId, name, exceptProjectId: null, cancellationToken);
+        await GuardNameIsFreeAsync(supervisorId, name, exceptProjectId: null, cancellationToken);
 
         var project = new Project
         {
-            EmployerId = employerId,
+            SupervisorId = supervisorId,
             Name = name,
             IsActive = true,
             CreatedAtUtc = _clock.UtcNow,
@@ -51,13 +51,13 @@ public sealed class ProjectService
 
     public async Task<IReadOnlyList<ProjectResponse>> ListAsync(CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         return await _db.Projects
             .AsNoTracking()
-            .Where(p => p.EmployerId == employerId)
+            .Where(p => p.SupervisorId == supervisorId)
             .OrderBy(p => p.Name)
-            .Select(p => new ProjectResponse(p.Id, p.EmployerId, p.Name, p.IsActive, p.CreatedAtUtc))
+            .Select(p => new ProjectResponse(p.Id, p.SupervisorId, p.Name, p.IsActive, p.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -72,12 +72,12 @@ public sealed class ProjectService
         UpdateProjectRequest request,
         CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
         var (name, isActive) = ProjectRequestValidator.ValidateAndNormalize(request);
 
         var project = await FindOwnedAsync(projectId, cancellationToken);
 
-        await GuardNameIsFreeAsync(employerId, name, exceptProjectId: project.Id, cancellationToken);
+        await GuardNameIsFreeAsync(supervisorId, name, exceptProjectId: project.Id, cancellationToken);
 
         project.Name = name;
         project.IsActive = isActive;
@@ -90,8 +90,8 @@ public sealed class ProjectService
     /// Hard-deletes an empty project. The schema cascades Project → Shifts →
     /// ShiftApplications, so a project that has any shift is refused with a
     /// 409 pointing the caller at deactivation (IsActive = false) instead —
-    /// deleting it would erase approved work history. Expert-project
-    /// assignments do not block the delete; the Project → ExpertProjects FK is
+    /// deleting it would erase approved work history. CallAgent-project
+    /// assignments do not block the delete; the Project → CallAgentProjects FK is
     /// NO ACTION, so those rows are removed here explicitly.
     /// </summary>
     public async Task DeleteAsync(int projectId, CancellationToken cancellationToken)
@@ -106,36 +106,36 @@ public sealed class ProjectService
                 + "Deactivate it instead by setting isActive to false.");
         }
 
-        var assignments = await _db.ExpertProjects
+        var assignments = await _db.CallAgentProjects
             .Where(ep => ep.ProjectId == project.Id)
             .ToListAsync(cancellationToken);
 
-        _db.ExpertProjects.RemoveRange(assignments);
+        _db.CallAgentProjects.RemoveRange(assignments);
         _db.Projects.Remove(project);
         await _db.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
     /// Loads a project by id <em>and</em> owner in one query. A miss — unknown
-    /// id or another employer's project — is a <see cref="NotFoundException"/>.
+    /// id or another supervisor's project — is a <see cref="NotFoundException"/>.
     /// </summary>
     private async Task<Project> FindOwnedAsync(int projectId, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         return await _db.Projects
-                   .FirstOrDefaultAsync(p => p.Id == projectId && p.EmployerId == employerId, cancellationToken)
+                   .FirstOrDefaultAsync(p => p.Id == projectId && p.SupervisorId == supervisorId, cancellationToken)
                ?? throw new NotFoundException("Project not found.");
     }
 
     private async Task GuardNameIsFreeAsync(
-        int employerId,
+        int supervisorId,
         string name,
         int? exceptProjectId,
         CancellationToken cancellationToken)
     {
         var taken = await _db.Projects.AnyAsync(
-            p => p.EmployerId == employerId
+            p => p.SupervisorId == supervisorId
                  && p.Name == name
                  && (exceptProjectId == null || p.Id != exceptProjectId),
             cancellationToken);
@@ -150,5 +150,5 @@ public sealed class ProjectService
     }
 
     private static ProjectResponse ToResponse(Project p) =>
-        new(p.Id, p.EmployerId, p.Name, p.IsActive, p.CreatedAtUtc);
+        new(p.Id, p.SupervisorId, p.Name, p.IsActive, p.CreatedAtUtc);
 }

@@ -1,14 +1,14 @@
 using ShiftFlow.Application.Common;
-using ShiftFlow.Application.Features.Experts.Dtos;
+using ShiftFlow.Application.Features.CallAgents.Dtos;
 
-namespace ShiftFlow.Application.Features.Experts.Validators;
+namespace ShiftFlow.Application.Features.CallAgents.Validators;
 
 /// <summary>
-/// Semantic validation for <see cref="CreateExpertRequest"/>, on top of the
+/// Semantic validation for <see cref="CreateCallAgentRequest"/>, on top of the
 /// model binder's shape checks. Trims the username and full name, rejects blanks,
 /// and leaves the password untouched (it is only ever hashed, never stored raw).
 /// </summary>
-public static class CreateExpertRequestValidator
+public static class CreateCallAgentRequestValidator
 {
     private const int UsernameMaxLength = 64;
     private const int FullNameMaxLength = 128;
@@ -16,7 +16,7 @@ public static class CreateExpertRequestValidator
 
     /// <returns>The trimmed username and full name, and the password verbatim.</returns>
     public static (string Username, string Password, string FullName) ValidateAndNormalize(
-        CreateExpertRequest request)
+        CreateCallAgentRequest request)
     {
         var username = (request.Username ?? string.Empty).Trim();
         var fullName = (request.FullName ?? string.Empty).Trim();

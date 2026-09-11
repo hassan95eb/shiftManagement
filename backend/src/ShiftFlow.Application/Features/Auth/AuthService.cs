@@ -7,7 +7,7 @@ namespace ShiftFlow.Application.Features.Auth;
 
 /// <summary>
 /// The one use case of the auth phase: exchange a username and password for a
-/// signed access token. Only <c>Users</c> is read; the Employer / Expert row is
+/// signed access token. Only <c>Users</c> is read; the Supervisor / CallAgent row is
 /// pulled alongside so its id can go into the token claims.
 /// </summary>
 public sealed class AuthService
@@ -26,8 +26,8 @@ public sealed class AuthService
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
     {
         var user = await _db.Users
-            .Include(u => u.Employer)
-            .Include(u => u.Expert)
+            .Include(u => u.Supervisor)
+            .Include(u => u.CallAgent)
             .SingleOrDefaultAsync(u => u.Username == request.Username, cancellationToken);
 
         if (user is null
@@ -37,10 +37,10 @@ public sealed class AuthService
             throw new InvalidCredentialsException();
         }
 
-        var employerId = user.Employer?.Id;
-        var expertId = user.Expert?.Id;
+        var supervisorId = user.Supervisor?.Id;
+        var callAgentId = user.CallAgent?.Id;
 
-        var token = _tokenService.CreateAccessToken(user, employerId, expertId);
+        var token = _tokenService.CreateAccessToken(user, supervisorId, callAgentId);
 
         return new LoginResponse(
             token.Token,
@@ -48,7 +48,7 @@ public sealed class AuthService
             "Bearer",
             user.Id,
             user.Role.ToString(),
-            employerId,
-            expertId);
+            supervisorId,
+            callAgentId);
     }
 }

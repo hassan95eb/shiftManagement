@@ -9,23 +9,23 @@ using ShiftFlow.Tests.Support;
 namespace ShiftFlow.Tests.Projects;
 
 /// <summary>
-/// CLAUDE.md §7: an employer may only ever touch their own projects. A correct
-/// role pointed at another employer's project — or at an id that does not exist
+/// CLAUDE.md §7: a supervisor may only ever touch their own projects. A correct
+/// role pointed at another supervisor's project — or at an id that does not exist
 /// — must fail, and must fail the same way, so ids cannot be probed.
 /// </summary>
 public class ProjectAuthorizationTests
 {
-    private static ProjectService ServiceFor(SqliteTestContext ctx, int userId, int employerId) =>
-        new(ctx.Db, StubCurrentUser.Employer(userId, employerId), new TestClock());
+    private static ProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
+        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock());
 
     private static readonly UpdateProjectRequest AnyUpdate = new() { Name = "Renamed", IsActive = false };
 
     [Fact]
-    public async Task Reading_another_employers_project_is_NotFound()
+    public async Task Reading_another_supervisors_project_is_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -33,21 +33,21 @@ public class ProjectAuthorizationTests
     }
 
     [Fact]
-    public async Task Reading_an_unknown_id_with_a_valid_employer_is_also_NotFound()
+    public async Task Reading_an_unknown_id_with_a_valid_supervisor_is_also_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
+        var acme = ctx.Db.AddSupervisor("Acme");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             ServiceFor(ctx, acme.UserId, acme.Id).GetAsync(9999, CancellationToken.None));
     }
 
     [Fact]
-    public async Task Updating_another_employers_project_is_NotFound_and_changes_nothing()
+    public async Task Updating_another_supervisors_project_is_NotFound_and_changes_nothing()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -60,11 +60,11 @@ public class ProjectAuthorizationTests
     }
 
     [Fact]
-    public async Task Deleting_another_employers_project_is_NotFound_and_the_project_survives()
+    public async Task Deleting_another_supervisors_project_is_NotFound_and_the_project_survives()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -77,8 +77,8 @@ public class ProjectAuthorizationTests
     public async Task List_returns_only_the_callers_projects()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         ctx.Db.AddProject(acme.Id, "Acme A");
         ctx.Db.AddProject(acme.Id, "Acme B");
         ctx.Db.AddProject(globex.Id, "Globex A");

@@ -1,8 +1,8 @@
 # ShiftFlow
 
-A call-center shift-management panel. Hourly specialists (**Experts**) declare when
-they are available and apply for open shifts; an **Employer** manages projects, opens
-shifts, and approves or rejects applications. One expert is approved per shift, inside a
+A call-center shift-management panel. Hourly specialists (**CallAgents**) declare when
+they are available and apply for open shifts; an **Supervisor** manages projects, opens
+shifts, and approves or rejects applications. One CallAgent is approved per shift, inside a
 single transaction that also rejects the other applicants. A standalone Python script
 (built in a later phase) ranks each shift's applicants and writes a score and a
 human-readable reason back to the database.
@@ -67,7 +67,7 @@ Once it is up:
 | URL | What you should see |
 |---|---|
 | `http://localhost:8080/swagger` | Swagger UI |
-| `POST http://localhost:8080/api/auth/login` with `{"username":"employer","password":"Demo!Pass1"}` | `200` with an `accessToken` |
+| `POST http://localhost:8080/api/auth/login` with `{"username":"supervisor","password":"Demo!Pass1"}` | `200` with an `accessToken` |
 | `GET http://localhost:8080/api/shifts/1/recommendations` + `Authorization: Bearer <token>` | `ada` 76.10, `nate` 71.50, `kite` 70.90 |
 
 To run the API from source instead, see [Manual Setup](#manual-setup) — that path is
@@ -141,15 +141,15 @@ Every account's password is `Demo!Pass1`.
 
 | Role | Username | In the scenario |
 |---|---|---|
-| Employer | `employer` | owns **Retail Support** and **Billing Support**, decides applications |
-| Employer | `rival` | owns a separate project — use it to confirm the ownership boundary (`404`, not `403`) |
-| Expert | `ada` | applies to the pool shift; already approved for another shift (drives apply rule 5) |
-| Expert | `grace` | availability ends before the pool shift (apply rule 3 — fail) |
-| Expert | `lin` | availability covers the pool shift exactly (apply rules 3 & 4) |
-| Expert | `omar` | no availability on the pool day; already approved on the closed shift |
-| Expert | `nate` | clean pool applicant, has a recommendation row |
-| Expert | `kite` | clean pool applicant; no rating row, so scores the `3.0` default |
-| Expert | `rosa` | assigned to no Northwind project (apply rule 2 — fail) |
+| Supervisor | `supervisor` | owns **Retail Support** and **Billing Support**, decides applications |
+| Supervisor | `rival` | owns a separate project — use it to confirm the ownership boundary (`404`, not `403`) |
+| CallAgent | `ada` | applies to the pool shift; already approved for another shift (drives apply rule 5) |
+| CallAgent | `grace` | availability ends before the pool shift (apply rule 3 — fail) |
+| CallAgent | `lin` | availability covers the pool shift exactly (apply rules 3 & 4) |
+| CallAgent | `omar` | no availability on the pool day; already approved on the closed shift |
+| CallAgent | `nate` | clean pool applicant, has a recommendation row |
+| CallAgent | `kite` | clean pool applicant; no rating row, so scores the `3.0` default |
+| CallAgent | `rosa` | assigned to no Northwind project (apply rule 2 — fail) |
 
 See the [seed scenario map](#seed-scenario-map) for exactly which rows demonstrate which
 rule.
@@ -162,34 +162,34 @@ except `login` requires `Authorization: Bearer <token>`; the token's role must m
 | Method & path | Role | Purpose |
 |---|---|---|
 | `POST /api/auth/login` | anonymous | exchange username + password for a JWT |
-| `GET /api/projects` | Employer | list your projects |
-| `POST /api/projects` | Employer | create a project |
-| `GET /api/projects/{id}` | Employer | one project |
-| `PUT /api/projects/{id}` | Employer | rename / toggle a project |
-| `DELETE /api/projects/{id}` | Employer | delete a project (cascades to shifts) |
-| `GET /api/projects/{id}/experts` | Employer | experts assigned to a project |
-| `POST /api/experts` | Employer | register an expert (with an initial password) |
-| `GET /api/experts` | Employer | list experts |
-| `GET /api/experts/{id}` | Employer | one expert |
-| `POST /api/experts/{id}/projects/{projectId}` | Employer | assign an expert to a project |
-| `DELETE /api/experts/{id}/projects/{projectId}` | Employer | unassign (rejects the expert's pending applications on that project) |
-| `GET /api/experts/{id}/projects` | Employer | an expert's project assignments |
-| `POST /api/availability` | Expert | add an availability window (overlapping / adjacent windows are merged on insert) |
-| `GET /api/availability` | Expert | your windows |
-| `GET /api/availability/{id}` | Expert | one window |
-| `PUT /api/availability/{id}` | Expert | resize a window (may merge; the response body is the source of truth for the id) |
-| `DELETE /api/availability/{id}` | Expert | delete a window (blocked if it covers an approved shift) |
-| `POST /api/shifts` | Employer | open a shift on one of your projects |
-| `GET /api/shifts` | Employer | your shifts, filterable by project / status / date |
-| `GET /api/shifts/{id}` | Employer | one shift |
-| `PUT /api/shifts/{id}` | Employer | correct a shift's window (only while Open and unapplied; optimistic-concurrency `409`) |
-| `GET /api/shifts/open` | Expert | open shifts on your assigned projects |
-| `GET /api/shifts/open/{id}` | Expert | one open shift you can apply to |
-| `POST /api/shifts/{shiftId}/applications` | Expert | apply to a shift (the five rules below) |
-| `GET /api/applications` | Employer or Expert | application history, scoped to the caller, filterable by shift / status |
-| `POST /api/applications/{applicationId}/approval` | Employer | approve — closes the shift, rejects the siblings, all in one transaction |
-| `POST /api/applications/{applicationId}/rejection` | Employer | reject this one application; the shift stays Open |
-| `GET /api/shifts/{shiftId}/recommendations` | Employer | the applicant ranking the Python script wrote |
+| `GET /api/projects` | Supervisor | list your projects |
+| `POST /api/projects` | Supervisor | create a project |
+| `GET /api/projects/{id}` | Supervisor | one project |
+| `PUT /api/projects/{id}` | Supervisor | rename / toggle a project |
+| `DELETE /api/projects/{id}` | Supervisor | delete a project (cascades to shifts) |
+| `GET /api/projects/{id}/call-agents` | Supervisor | CallAgents assigned to a project |
+| `POST /api/call-agents` | Supervisor | register a CallAgent (with an initial password) |
+| `GET /api/call-agents` | Supervisor | list CallAgents |
+| `GET /api/call-agents/{id}` | Supervisor | one CallAgent |
+| `POST /api/call-agents/{id}/projects/{projectId}` | Supervisor | assign a CallAgent to a project |
+| `DELETE /api/call-agents/{id}/projects/{projectId}` | Supervisor | unassign (rejects the CallAgent's pending applications on that project) |
+| `GET /api/call-agents/{id}/projects` | Supervisor | a CallAgent's project assignments |
+| `POST /api/availability` | CallAgent | add an availability window (overlapping / adjacent windows are merged on insert) |
+| `GET /api/availability` | CallAgent | your windows |
+| `GET /api/availability/{id}` | CallAgent | one window |
+| `PUT /api/availability/{id}` | CallAgent | resize a window (may merge; the response body is the source of truth for the id) |
+| `DELETE /api/availability/{id}` | CallAgent | delete a window (blocked if it covers an approved shift) |
+| `POST /api/shifts` | Supervisor | open a shift on one of your projects |
+| `GET /api/shifts` | Supervisor | your shifts, filterable by project / status / date |
+| `GET /api/shifts/{id}` | Supervisor | one shift |
+| `PUT /api/shifts/{id}` | Supervisor | correct a shift's window (only while Open and unapplied; optimistic-concurrency `409`) |
+| `GET /api/shifts/open` | CallAgent | open shifts on your assigned projects |
+| `GET /api/shifts/open/{id}` | CallAgent | one open shift you can apply to |
+| `POST /api/shifts/{shiftId}/applications` | CallAgent | apply to a shift (the five rules below) |
+| `GET /api/applications` | Supervisor or CallAgent | application history, scoped to the caller, filterable by shift / status |
+| `POST /api/applications/{applicationId}/approval` | Supervisor | approve — closes the shift, rejects the siblings, all in one transaction |
+| `POST /api/applications/{applicationId}/rejection` | Supervisor | reject this one application; the shift stays Open |
+| `GET /api/shifts/{shiftId}/recommendations` | Supervisor | the applicant ranking the Python script wrote |
 
 ### Error shape
 
@@ -214,16 +214,16 @@ except `login` requires `Authorization: Bearer <token>`; the token's role must m
 ### Applying to a shift — `POST /api/shifts/{shiftId}/applications`
 
 All five are enforced in `ApplicationService`, in this order (cheapest first after the
-membership gate). The database constraints (`UQ_ShiftApplications_Shift_Expert`, the
+membership gate). The database constraints (`UQ_ShiftApplications_Shift_CallAgent`, the
 filtered one-approved index) are a race backstop, not the primary check.
 
 | # | Rule | Failure | Example (scenario seed) |
 |---|---|---|---|
-| 2 | The expert is assigned to the shift's project | `404` — indistinguishable from an unknown id, so membership can't be probed | `rosa` (Overflow Desk only) → any Retail shift |
-| 1 | The shift's status is `Open` | `409` "no longer open for applications" | any Retail expert → the 2026-11-11 **Closed** shift |
-| 4 | No existing application by this expert for this shift (any status) | `409` "already applied to this shift" | `lin` applies to the pool shift twice |
+| 2 | The CallAgent is assigned to the shift's project | `404` — indistinguishable from an unknown id, so membership can't be probed | `rosa` (Overflow Desk only) → any Retail shift |
+| 1 | The shift's status is `Open` | `409` "no longer open for applications" | any Retail CallAgent → the 2026-11-11 **Closed** shift |
+| 4 | No existing application by this CallAgent for this shift (any status) | `409` "already applied to this shift" | `lin` applies to the pool shift twice |
 | 3 | One availability window covers the **whole** shift | `409` "does not cover the whole of this shift" | `grace` (06:00–14:00) or `omar` (no window) → the 08:00–16:00 pool shift |
-| 5 | No overlap with a shift the expert is already **approved** for — half-open: `existing.Start < new.End AND existing.End > new.Start`, so back-to-back shifts (10–14, 14–18) are fine | `409` "overlaps another shift you are already approved for" | `ada` (approved 2026-11-12 09:00–17:00) → the overlapping 08:00–16:00 shift that day |
+| 5 | No overlap with a shift the CallAgent is already **approved** for — half-open: `existing.Start < new.End AND existing.End > new.Start`, so back-to-back shifts (10–14, 14–18) are fine | `409` "overlaps another shift you are already approved for" | `ada` (approved 2026-11-12 09:00–17:00) → the overlapping 08:00–16:00 shift that day |
 
 Rule 3 is a single-window containment test, not gap-stitching: because adjacent windows are
 merged on write, a shift spanning what used to be two touching windows is covered by the one
@@ -231,15 +231,15 @@ merged window. Two windows with a real gap still fail.
 
 ### Approving an application — `POST /api/applications/{id}/approval`
 
-One expert per shift. Inside **one transaction**:
+One CallAgent per shift. Inside **one transaction**:
 
-1. verify the employer owns the shift's project (else `404`);
+1. verify the supervisor owns the shift's project (else `404`);
 2. verify the shift is still `Open` (else `409`);
 3. verify the application is still `Pending` (else `409`);
-4. **re-check apply rule 5** against current state — the expert may have been approved for a clashing shift since applying;
+4. **re-check apply rule 5** against current state — the CallAgent may have been approved for a clashing shift since applying;
 5. application → `Approved`, recording `DecidedByUserId` / `DecidedAtUtc`;
 6. shift → `Closed`;
-7. every other `Pending` application on that shift → `Rejected`, with `DecisionNote = "Shift filled by another expert."`
+7. every other `Pending` application on that shift → `Rejected`, with `DecisionNote = "Shift filled by another CallAgent."`
 
 If the final write fails (e.g. the filtered unique index catches a race, or the shift's
 `RowVersion` moved), the whole thing rolls back: the shift stays `Open` and no sibling is
@@ -263,7 +263,7 @@ FinalScore = (0.30 * RatingScore + 0.30 * WorkloadScore + 0.40 * AvailabilitySco
 ```
 
 - "Previous month" and `ApprovedHours` are relative to the month of **`Shift.StartUtc`**, not today.
-- An expert with no rating row scores `3.0`.
+- A CallAgent with no rating row scores `3.0`.
 - Ranking is over the **applicants of one shift**. Tie-break: fewer approved hours first, then earlier `AppliedAtUtc`.
 - `Reason` is traceable to the three weighted components.
 
@@ -290,8 +290,8 @@ Full ERD, every column, constraint, index, and delete rule: [docs/01-erd-and-sch
 Shape highlights: `INT IDENTITY` keys; `DATETIME2(0)` UTC timestamps; enums as `NVARCHAR`
 + `CHECK`, mapped `HasConversion<string>()`; `DECIMAL` for scores; `RowVersion` on `Shifts`
 for optimistic concurrency; a filtered `UNIQUE INDEX UX_ShiftApplications_OneApproved` as
-the last-ditch guard against two approvals racing. The Employer → Project → Shift path
-cascades on delete; every FK from the Expert side is `NO ACTION` (SQL Server rejects two
+the last-ditch guard against two approvals racing. The Supervisor → Project → Shift path
+cascades on delete; every FK from the CallAgent side is `NO ACTION` (SQL Server rejects two
 cascade paths into one table).
 
 ### Generated SQL scripts
@@ -304,7 +304,7 @@ cascade paths into one table).
   `SET QUOTED_IDENTIFIER ON` (`sqlcmd -I`); 02 also stamps the
   `__EFMigrationsHistory` row.
 - The `UNIQUE` constraints in the ERD (`UQ_Users_Username`,
-  `UQ_Projects_Employer_Name`, `UQ_ShiftApplications_Shift_Expert`, …) are
+  `UQ_Projects_Supervisor_Name`, `UQ_ShiftApplications_Shift_CallAgent`, …) are
   implemented as **named unique indexes**, not `ALTER TABLE … ADD CONSTRAINT …
   UNIQUE`. This is EF Core's default; it is functionally equivalent and keeps
   the names from the ERD.
@@ -316,10 +316,10 @@ cascade paths into one table).
 Checked against the running SQL Server container with actual execution plans, not
 by reasoning. `IX_Shifts_Status_StartUtc` is seek-served with the sort eliminated
 for the covered "open shifts ordered by start time" shape it was designed for
-(`docs/01` §5). The expert-facing open-shift listing is instead served by a seek
-on `IX_Shifts_ProjectId_Status`: the join to the expert's handful of assigned
+(`docs/01` §5). The CallAgent-facing open-shift listing is instead served by a seek
+on `IX_Shifts_ProjectId_Status`: the join to the CallAgent's handful of assigned
 projects makes `ProjectId` the selective leading column, and no scan of `Shifts`
-happens. The multi-column employer list (`SELECT *`-style, filtered by
+happens. The multi-column supervisor list (`SELECT *`-style, filtered by
 `Status`/date) falls back to a clustered scan because `Open` is not selective at
 scale; adding `INCLUDE` columns to make it index-served was considered and
 rejected — a schema change not justified for this data volume.
@@ -344,12 +344,12 @@ Retail shift (2026-11-11 08:00–16:00, `Closed`); **A** = ada's approved shift 
 | **3 — availability covers the shift** | apply as `lin` (exact 08:00–16:00 window) → **P** | apply as `grace` (window 06:00–14:00) or `omar` (no window that day) → **P** |
 | **4 — no duplicate** | first apply as `lin` → **P** | second apply as `lin` → **P** |
 | **5 — no overlap with an approved shift** | apply as `ada` → **B** (different project, no time overlap with **A**) | apply as `ada` → **N12** (overlaps **A** 09:00–17:00) |
-| **approval cascade** | already materialised on **C**: `omar` `Approved`, `kite` `Rejected` with note `"Shift filled by another expert."`, shift `Closed` | — |
-| **recommendation ranking** | `GET /api/shifts/{P}/recommendations` as `employer` → `ada` 76.1, `nate` 71.5, `kite` 70.9 | — |
-| **ownership boundary (§7)** | any read as `employer` | the same id as `rival` → `404` |
+| **approval cascade** | already materialised on **C**: `omar` `Approved`, `kite` `Rejected` with note `"Shift filled by another CallAgent."`, shift `Closed` | — |
+| **recommendation ranking** | `GET /api/shifts/{P}/recommendations` as `supervisor` → `ada` 76.1, `nate` 71.5, `kite` 70.9 | — |
+| **ownership boundary (§7)** | any read as `supervisor` | the same id as `rival` → `404` |
 
 Pool-shift applicants from the seed: `ada`, `nate`, `kite` (all `Pending`, each with a
-recommendation row). Add `lin` through the API for a fourth. `ExpertRatings` carry `2026-10`
+recommendation row). Add `lin` through the API for a fourth. `Ratings` carry `2026-10`
 (the month before the pool shift) for `ada`, `grace`, `lin`, `omar`, `nate`; `ada` also has
 a `2026-09` row; `kite` has none, so it scores the `3.0` default.
 
@@ -374,13 +374,13 @@ across every feature, and the scenario seed's consistency and idempotency.
 
 Every ambiguous point in the brief and the decision taken. Kept as a running list.
 
-- **Expert passwords have no strength policy.** `POST /api/experts` enforces only
+- **CallAgent passwords have no strength policy.** `POST /api/call-agents` enforces only
   that a password is present and within a length limit; there is no minimum
   length, character-class or breach check. The brief does not define one, and it
   is a policy decision rather than a domain rule.
-- **The employer sets the expert's initial password.** A production system would
+- **The supervisor sets the CallAgent's initial password.** A production system would
   email the new specialist an invitation link and let them choose their own
-  password; here the employer supplies it directly in the create request to keep
+  password; here the supervisor supplies it directly in the create request to keep
   the flow to a single endpoint.
 - **OpenAPI advisory (NU1903).** The scaffold's `Microsoft.AspNetCore.OpenApi`
   reference pulls a transitive `Microsoft.OpenApi 2.0.0` with a known advisory.
@@ -403,38 +403,38 @@ Every ambiguous point in the brief and the decision taken. Kept as a running lis
   column is `datetime2(0)`, so the request validator drops any sub-second part
   before the merge runs — the arithmetic uses the same precision the database
   keeps, and a re-post of a stored window is a no-op.
-- **No employer-facing read of an expert's availability.** The Prompt 6
-  endpoints are Expert-role only (create, list, update, delete, all scoped to
-  the caller). An employer's need to know whether an expert covers a shift is
+- **No supervisor-facing read of a CallAgent's availability.** The Prompt 6
+  endpoints are CallAgent-role only (create, list, update, delete, all scoped to
+  the caller). A supervisor's need to know whether a CallAgent covers a shift is
   met server-side at approval time (build order step 11), so exposing an
-  availability read to employers now would be unused surface (CLAUDE.md §2).
+  availability read to supervisors now would be unused surface (CLAUDE.md §2).
 - **Apply-rule violations: which HTTP status and why.** `POST
   /api/shifts/{id}/applications` enforces all five §5 rules in the Application
   layer, each with its own message; the DB constraints
-  (`UQ_ShiftApplications_Shift_Expert`, `UX_ShiftApplications_OneApproved`) stay
+  (`UQ_ShiftApplications_Shift_CallAgent`, `UX_ShiftApplications_OneApproved`) stay
   a race backstop, not the primary check.
   - **Rule 2 — project membership → 404.** A shift on a project the caller is
     not assigned to is indistinguishable from an unknown id, so membership
-    cannot be probed (CLAUDE.md §7). Same 404 as the expert shift read.
+    cannot be probed (CLAUDE.md §7). Same 404 as the CallAgent shift read.
   - **Rules 1, 3, 4, 5 → 409** (`BusinessRuleViolation`). Once membership is
     established the shift's existence is not secret, so these report the real
     conflict: shift not Open ("no longer open for applications"), availability
     gap ("does not cover the whole of this shift"), duplicate ("already applied
     to this shift"), approved-shift overlap ("overlaps another shift you are
     already approved for"). This is a deliberate divergence from the
-    expert-facing shift *read*, which 404s a Closed shift — there, existence is
+    CallAgent-facing shift *read*, which 404s a Closed shift — there, existence is
     still being probed; here it is not.
   - **Check order** after the membership gate is cheapest-first: status →
     duplicate (one `Any`) → availability coverage → approved-overlap scan. A
     repeat submit therefore gets "already applied" rather than a stale coverage
-    error if the expert's windows changed since.
+    error if the CallAgent's windows changed since.
 - **No application withdrawal in this phase.** The design docs define no
   withdraw endpoint and no `Withdrawn` status (`docs/01` §3-8 locks `Status` to
-  `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, ExpertId)` means a row
+  `Pending | Approved | Rejected`), and `UNIQUE(ShiftId, CallAgentId)` means a row
   kept as `Rejected` — or a new `Withdrawn` — would permanently bar re-applying:
   a behaviour change the brief never asked for. The only re-application-safe
   option is a hard delete of the `Pending` row, but that is a new
-  Expert-initiated delete path (every FK from the Expert side is `NO ACTION` by
+  CallAgent-initiated delete path (every FK from the CallAgent side is `NO ACTION` by
   design, `docs/01` §4) and belongs in its own phase with explicit sign-off, not
   a silent addition here. Approval is likewise one-directional ("Cancelling an
   approval is out of scope"), so forward-only application state is the design's
@@ -446,7 +446,7 @@ Every ambiguous point in the brief and the decision taken. Kept as a running lis
   one `08:00–16:00` window) is accepted. Two windows with a real gap between
   them still fail.
 - **The scenario seed runs only under `Development` / `AutoMigrate`, and only
-  from the API process.** It is guarded (checks for the `employer` account and
+  from the API process.** It is guarded (checks for the `supervisor` account and
   returns if present), uses fixed absolute 2026 dates so it never depends on the
   wall clock, and is mirrored row-for-row by `database/03-seed.sql` for the
   raw-script setup path. It is development data — nine accounts sharing one
@@ -464,11 +464,11 @@ Every ambiguous point in the brief and the decision taken. Kept as a running lis
 
 What a production system would add, and why it is out of scope here:
 
-- **Multi-timezone.** Everything is UTC end to end; conversion to local time is a frontend concern. Per-expert timezones and DST handling would touch availability, shift display, and the coverage rule.
+- **Multi-timezone.** Everything is UTC end to end; conversion to local time is a frontend concern. Per-CallAgent timezones and DST handling would touch availability, shift display, and the coverage rule.
 - **More shift statuses.** `Confirmed`, `Completed`, `NoShow`, cancellation, and re-opening a closed shift are all real call-center needs the brief does not ask for. Adding them touches the approval transaction and the state machine.
 - **Refresh tokens / logout / rotation.** The brief specifies a bare access token; a real system needs refresh tokens, revocation, and short access-token lifetimes.
-- **Shift capacity > 1.** The design fixes one expert per shift; multi-slot shifts would change the approval flow and the filtered unique index.
-- **Rating ingestion.** `ExpertRatings` is seed-only. A real system feeds it from a QA pipeline or customer surveys, with its own history and audit.
+- **Shift capacity > 1.** The design fixes one CallAgent per shift; multi-slot shifts would change the approval flow and the filtered unique index.
+- **Rating ingestion.** `Ratings` is seed-only. A real system feeds it from a QA pipeline or customer surveys, with its own history and audit.
 - **A `ScoringWeights` table + admin UI.** Weights live in configuration; making them runtime-editable is a feature the brief does not need.
 - **Soft delete / audit history tables.** Deletes are physical and FK-controlled; a compliance context would want tombstones and full audit trails.
 - **Application-level DB resilience.** Startup ordering relies on the Compose healthcheck (`condition: service_healthy`), not on connection retry in the app — enough for one local SQL Server container, but a managed database (failovers, transient throttling) would want `EnableRetryOnFailure` on the EF Core provider and retry-aware transactions.

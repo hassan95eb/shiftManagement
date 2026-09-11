@@ -1,10 +1,10 @@
 namespace ShiftFlow.Domain.Entities;
 
 /// <summary>
-/// Employer profile — owns projects and the shifts under them
+/// Supervisor profile — owns projects and the shifts under them
 /// (docs/01-erd-and-schema.md §3-2).
 /// </summary>
-public class Employer
+public class Supervisor
 {
     public int Id { get; set; }
 

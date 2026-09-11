@@ -12,7 +12,7 @@ namespace ShiftFlow.Infrastructure.Identity;
 /// <summary>
 /// Issues HMAC-SHA256 signed JWTs. Expiry is derived from <see cref="IClock"/>
 /// so token lifetime is deterministic under test. The token carries
-/// <c>sub</c> (user id), <c>role</c>, and <c>employerId</c> or <c>expertId</c>
+/// <c>sub</c> (user id), <c>role</c>, and <c>supervisorId</c> or <c>callAgentId</c>
 /// (<see cref="ClaimNames"/>).
 /// </summary>
 public sealed class JwtTokenService : IJwtTokenService
@@ -26,7 +26,7 @@ public sealed class JwtTokenService : IJwtTokenService
         _clock = clock;
     }
 
-    public AccessToken CreateAccessToken(User user, int? employerId, int? expertId)
+    public AccessToken CreateAccessToken(User user, int? supervisorId, int? callAgentId)
     {
         var issuedAt = _clock.UtcNow;
         var expiresAt = issuedAt.AddMinutes(_options.AccessTokenLifetimeMinutes);
@@ -39,14 +39,14 @@ public sealed class JwtTokenService : IJwtTokenService
             new(ClaimNames.Role, user.Role.ToString()),
         };
 
-        if (employerId is int resolvedEmployerId)
+        if (supervisorId is int resolvedSupervisorId)
         {
-            claims.Add(new Claim(ClaimNames.EmployerId, resolvedEmployerId.ToString(CultureInfo.InvariantCulture)));
+            claims.Add(new Claim(ClaimNames.SupervisorId, resolvedSupervisorId.ToString(CultureInfo.InvariantCulture)));
         }
 
-        if (expertId is int resolvedExpertId)
+        if (callAgentId is int resolvedCallAgentId)
         {
-            claims.Add(new Claim(ClaimNames.ExpertId, resolvedExpertId.ToString(CultureInfo.InvariantCulture)));
+            claims.Add(new Claim(ClaimNames.CallAgentId, resolvedCallAgentId.ToString(CultureInfo.InvariantCulture)));
         }
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Key));

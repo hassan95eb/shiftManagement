@@ -12,7 +12,7 @@ namespace ShiftFlow.Application.Features.Applications;
 /// The apply-to-shift use case and the two application-history reads. The five
 /// business rules of CLAUDE.md §5 are enforced here, in the Application layer,
 /// each with its own message — the database constraints
-/// (<c>UQ_ShiftApplications_Shift_Expert</c>, the filtered one-approved index)
+/// (<c>UQ_ShiftApplications_Shift_CallAgent</c>, the filtered one-approved index)
 /// are a race backstop, not the primary check.
 /// </summary>
 /// <remarks>
@@ -22,7 +22,7 @@ namespace ShiftFlow.Application.Features.Applications;
 ///     Rule 2 (project membership) → <b>404</b>. A shift on a project the caller
 ///     is not assigned to is indistinguishable from one that does not exist, so
 ///     membership cannot be probed (CLAUDE.md §7). This is the same 404 the
-///     expert-facing shift read returns.
+///     CallAgent-facing shift read returns.
 ///   </item>
 ///   <item>
 ///     Rule 1 (shift not Open), rule 3 (availability coverage), rule 4
@@ -36,7 +36,7 @@ namespace ShiftFlow.Application.Features.Applications;
 /// The rules are checked cheapest-first after the membership gate: status, then
 /// duplicate (one <c>Any</c>), then availability coverage, then the approved
 /// overlap scan. A repeat submit therefore gets "already applied" rather than a
-/// stale coverage error if the expert's windows changed since.
+/// stale coverage error if the CallAgent's windows changed since.
 /// </para>
 /// </remarks>
 public sealed class ApplicationService
@@ -54,12 +54,12 @@ public sealed class ApplicationService
 
     /// <summary>
     /// Records a <see cref="ApplicationStatus.Pending"/> application by the
-    /// calling expert for <paramref name="shiftId"/>, once all five apply rules
+    /// calling CallAgent for <paramref name="shiftId"/>, once all five apply rules
     /// pass.
     /// </summary>
     public async Task<ApplicationResponse> ApplyAsync(int shiftId, CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
 
         // Rule 2 — project membership. Folded together with "unknown id": a shift
         // whose project the caller is not assigned to is a 404, never a 403, so
@@ -70,7 +70,7 @@ public sealed class ApplicationService
             .AsNoTracking()
             .FirstOrDefaultAsync(
                 s => s.Id == shiftId
-                     && s.Project.ExpertProjects.Any(ep => ep.ExpertId == expertId),
+                     && s.Project.CallAgentProjects.Any(ep => ep.CallAgentId == callAgentId),
                 cancellationToken)
             ?? throw new NotFoundException("Shift not found.");
 
@@ -82,10 +82,10 @@ public sealed class ApplicationService
         }
 
         // Rule 4 — no duplicate application. Any prior row for this (shift,
-        // expert) pair blocks a re-apply regardless of its status, because
-        // UNIQUE(ShiftId, ExpertId) would reject the insert anyway.
+        // CallAgent) pair blocks a re-apply regardless of its status, because
+        // UNIQUE(ShiftId, CallAgentId) would reject the insert anyway.
         var alreadyApplied = await _db.ShiftApplications
-            .AnyAsync(a => a.ShiftId == shiftId && a.ExpertId == expertId, cancellationToken);
+            .AnyAsync(a => a.ShiftId == shiftId && a.CallAgentId == callAgentId, cancellationToken);
         if (alreadyApplied)
         {
             throw new BusinessRuleViolationException(
@@ -99,7 +99,7 @@ public sealed class ApplicationService
         var covered = await _db.Availabilities
             .AsNoTracking()
             .AnyAsync(
-                a => a.ExpertId == expertId
+                a => a.CallAgentId == callAgentId
                      && a.StartUtc <= shift.StartUtc
                      && a.EndUtc >= shift.EndUtc,
                 cancellationToken);
@@ -115,7 +115,7 @@ public sealed class ApplicationService
         var overlapsApproved = await _db.ShiftApplications
             .AsNoTracking()
             .AnyAsync(
-                a => a.ExpertId == expertId
+                a => a.CallAgentId == callAgentId
                      && a.Status == ApplicationStatus.Approved
                      && a.Shift.StartUtc < shift.EndUtc
                      && a.Shift.EndUtc > shift.StartUtc,
@@ -129,7 +129,7 @@ public sealed class ApplicationService
         var application = new ShiftApplication
         {
             ShiftId = shiftId,
-            ExpertId = expertId,
+            CallAgentId = callAgentId,
             Status = ApplicationStatus.Pending,
             AppliedAtUtc = _clock.UtcNow,
         };
@@ -141,8 +141,8 @@ public sealed class ApplicationService
     }
 
     /// <summary>
-    /// Application history for the caller. An <b>expert</b> sees their own
-    /// applications; an <b>employer</b> sees the applications on shifts of their
+    /// Application history for the caller. An <b>CallAgent</b> sees their own
+    /// applications; an <b>supervisor</b> sees the applications on shifts of their
     /// own projects. Newest <see cref="ShiftApplication.AppliedAtUtc"/> first.
     /// The optional <paramref name="filter"/> only narrows that set further.
     /// </summary>
@@ -152,9 +152,9 @@ public sealed class ApplicationService
     {
         var query = _db.ShiftApplications.AsNoTracking();
 
-        query = _currentUser.Role == UserRole.Employer
-            ? ScopeToEmployer(query)
-            : ScopeToExpert(query);
+        query = _currentUser.Role == UserRole.Supervisor
+            ? ScopeToSupervisor(query)
+            : ScopeToCallAgent(query);
 
         if (filter.ShiftId is { } shiftId)
         {
@@ -173,23 +173,23 @@ public sealed class ApplicationService
             .ToListAsync(cancellationToken);
     }
 
-    private IQueryable<ShiftApplication> ScopeToExpert(IQueryable<ShiftApplication> query)
+    private IQueryable<ShiftApplication> ScopeToCallAgent(IQueryable<ShiftApplication> query)
     {
-        var expertId = _currentUser.RequireExpertId();
-        return query.Where(a => a.ExpertId == expertId);
+        var callAgentId = _currentUser.RequireCallAgentId();
+        return query.Where(a => a.CallAgentId == callAgentId);
     }
 
-    private IQueryable<ShiftApplication> ScopeToEmployer(IQueryable<ShiftApplication> query)
+    private IQueryable<ShiftApplication> ScopeToSupervisor(IQueryable<ShiftApplication> query)
     {
-        var employerId = _currentUser.RequireEmployerId();
-        return query.Where(a => a.Shift.Project.EmployerId == employerId);
+        var supervisorId = _currentUser.RequireSupervisorId();
+        return query.Where(a => a.Shift.Project.SupervisorId == supervisorId);
     }
 
     private static ApplicationResponse ToResponse(ShiftApplication a) =>
         new(
             a.Id,
             a.ShiftId,
-            a.ExpertId,
+            a.CallAgentId,
             a.Status.ToString(),
             a.AppliedAtUtc,
             a.DecidedByUserId,

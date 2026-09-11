@@ -8,14 +8,14 @@ using ShiftFlow.Application.Features.Shifts.Dtos;
 namespace ShiftFlow.Api.Controllers;
 
 /// <summary>
-/// Expert-only read of the shifts the caller can apply to: Open shifts on
+/// CallAgent-only read of the shifts the caller can apply to: Open shifts on
 /// projects the caller is assigned to. Anything else — a closed shift, a shift
 /// on a project the caller is not assigned to, an unknown id — responds as 404,
 /// so project membership is not probeable (CLAUDE.md §7).
 /// </summary>
 [ApiController]
 [Route("api/shifts/open")]
-[Authorize(Roles = RoleNames.Expert)]
+[Authorize(Roles = RoleNames.CallAgent)]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
@@ -29,7 +29,7 @@ public sealed class OpenShiftsController : ControllerBase
     }
 
     /// <summary>
-    /// Lists Open shifts on the calling expert's assigned projects, earliest
+    /// Lists Open shifts on the calling CallAgent's assigned projects, earliest
     /// start first. Optional <c>projectId</c> narrows to one project; a project
     /// the caller is not assigned to responds as 404.
     /// </summary>
@@ -41,7 +41,7 @@ public sealed class OpenShiftsController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _openShifts.ListAsync(projectId, cancellationToken));
 
-    /// <summary>Gets one Open shift on one of the calling expert's assigned projects by id.</summary>
+    /// <summary>Gets one Open shift on one of the calling CallAgent's assigned projects by id.</summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(ShiftResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]

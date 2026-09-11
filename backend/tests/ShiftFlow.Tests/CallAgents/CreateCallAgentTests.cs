@@ -2,19 +2,19 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using ShiftFlow.Application.Common;
-using ShiftFlow.Application.Features.Experts;
-using ShiftFlow.Application.Features.Experts.Dtos;
+using ShiftFlow.Application.Features.CallAgents;
+using ShiftFlow.Application.Features.CallAgents.Dtos;
 using ShiftFlow.Domain.Enums;
 using ShiftFlow.Tests.Support;
 
-namespace ShiftFlow.Tests.Experts;
+namespace ShiftFlow.Tests.CallAgents;
 
-public class CreateExpertTests
+public class CreateCallAgentTests
 {
-    private static ExpertService ServiceFor(SqliteTestContext ctx, StubCurrentUser caller) =>
+    private static CallAgentService ServiceFor(SqliteTestContext ctx, StubCurrentUser caller) =>
         new(ctx.Db, caller, new FakePasswordHasher(), new TestClock());
 
-    private static CreateExpertRequest Request(string username = "temp-jane") => new()
+    private static CreateCallAgentRequest Request(string username = "temp-jane") => new()
     {
         Username = username,
         Password = "correct horse battery staple",
@@ -22,51 +22,51 @@ public class CreateExpertTests
     };
 
     [Fact]
-    public async Task Create_writes_the_user_and_the_expert_together()
+    public async Task Create_writes_the_user_and_the_call_agent_together()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
+        var acme = ctx.Db.AddSupervisor("Acme");
 
-        var created = await ServiceFor(ctx, StubCurrentUser.Employer(acme.UserId, acme.Id))
+        var created = await ServiceFor(ctx, StubCurrentUser.Supervisor(acme.UserId, acme.Id))
             .CreateAsync(Request(), CancellationToken.None);
 
         var fresh = ctx.NewContext();
         var user = await fresh.Users.SingleAsync(u => u.Id == created.UserId);
-        var expert = await fresh.Experts.SingleAsync(e => e.Id == created.Id);
+        var callAgent = await fresh.CallAgents.SingleAsync(e => e.Id == created.Id);
 
-        Assert.Equal(UserRole.Expert, user.Role);
+        Assert.Equal(UserRole.CallAgent, user.Role);
         Assert.True(user.IsActive);
         Assert.Equal("temp-jane", user.Username);
         Assert.Equal(FakePasswordHasher.Prefix + "correct horse battery staple", user.PasswordHash);
         Assert.NotEqual("correct horse battery staple", user.PasswordHash);
-        Assert.Equal(user.Id, expert.UserId);
-        Assert.Equal("Jane Doe", expert.FullName);
+        Assert.Equal(user.Id, callAgent.UserId);
+        Assert.Equal("Jane Doe", callAgent.FullName);
     }
 
     [Fact]
     public async Task A_duplicate_username_is_rejected_and_nothing_is_written()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        ctx.Db.AddExpert("Existing Expert"); // username -> "existing-expert"
+        var acme = ctx.Db.AddSupervisor("Acme");
+        ctx.Db.AddCallAgent("Existing Call Agent"); // username -> "existing-call-agent"
 
         var usersBefore = await ctx.NewContext().Users.CountAsync();
 
         await Assert.ThrowsAsync<ValidationException>(() =>
-            ServiceFor(ctx, StubCurrentUser.Employer(acme.UserId, acme.Id))
-                .CreateAsync(Request(username: "existing-expert"), CancellationToken.None));
+            ServiceFor(ctx, StubCurrentUser.Supervisor(acme.UserId, acme.Id))
+                .CreateAsync(Request(username: "existing-call-agent"), CancellationToken.None));
 
         Assert.Equal(usersBefore, await ctx.NewContext().Users.CountAsync());
     }
 
     [Fact]
-    public async Task An_expert_principal_cannot_create_experts()
+    public async Task A_call_agent_principal_cannot_create_call_agents()
     {
         using var ctx = new SqliteTestContext();
-        var expert = ctx.Db.AddExpert("Jane Doe");
+        var callAgent = ctx.Db.AddCallAgent("Jane Doe");
 
         await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            ServiceFor(ctx, StubCurrentUser.Expert(expert.UserId, expert.Id))
+            ServiceFor(ctx, StubCurrentUser.CallAgent(callAgent.UserId, callAgent.Id))
                 .CreateAsync(Request(), CancellationToken.None));
     }
 }

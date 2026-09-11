@@ -9,20 +9,20 @@ using ShiftFlow.Domain.Exceptions;
 namespace ShiftFlow.Application.Features.Applications;
 
 /// <summary>
-/// The employer's decision on a pending application. <see cref="ApproveAsync"/>
+/// The supervisor's decision on a pending application. <see cref="ApproveAsync"/>
 /// runs the exact CLAUDE.md §5 sequence inside one explicit transaction;
 /// <see cref="RejectAsync"/> touches only the one row and leaves the shift
 /// <see cref="ShiftStatus.Open"/> for the remaining applicants.
 /// </summary>
 /// <remarks>
 /// <para><b>Ownership.</b> Both methods load the application filtered through
-/// <c>Shift.Project.EmployerId</c>, so an application on another employer's
+/// <c>Shift.Project.SupervisorId</c>, so an application on another supervisor's
 /// project — like an unknown id — is a <see cref="NotFoundException"/> (404),
 /// never a 403 (CLAUDE.md §7).</para>
 /// <para><b>Why an explicit transaction for approve.</b> The approved row, the
 /// shift's move to <see cref="ShiftStatus.Closed"/> and the sibling rejections
 /// are one atomic unit, and apply rule 5 is re-checked <i>inside</i> the
-/// transaction — the expert may have been approved for a clashing shift since
+/// transaction — the CallAgent may have been approved for a clashing shift since
 /// they applied. A lone <see cref="IAppDbContext.SaveChangesAsync"/> would still
 /// be atomic, but it could not hold the re-check and the writes in the same
 /// isolation scope, and the filtered unique index
@@ -36,7 +36,7 @@ public sealed class ApprovalService
     /// docs/01-erd-and-schema.md §3-8 gives this exact wording as the
     /// <see cref="ShiftApplication.DecisionNote"/> example.
     /// </summary>
-    private const string ShiftFilledNote = "Shift filled by another expert.";
+    private const string ShiftFilledNote = "Shift filled by another CallAgent.";
 
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
@@ -58,7 +58,7 @@ public sealed class ApprovalService
     /// </summary>
     public async Task<ApplicationResponse> ApproveAsync(int applicationId, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         await using var transaction = await _db.BeginTransactionAsync(cancellationToken);
 
@@ -66,7 +66,7 @@ public sealed class ApprovalService
         var application = await _db.ShiftApplications
             .Include(a => a.Shift)
             .FirstOrDefaultAsync(
-                a => a.Id == applicationId && a.Shift.Project.EmployerId == employerId,
+                a => a.Id == applicationId && a.Shift.Project.SupervisorId == supervisorId,
                 cancellationToken)
             ?? throw new NotFoundException("Application not found.");
 
@@ -91,7 +91,7 @@ public sealed class ApprovalService
         // that merely touches an approved one does not clash.
         var overlapsApproved = await _db.ShiftApplications
             .AnyAsync(
-                a => a.ExpertId == application.ExpertId
+                a => a.CallAgentId == application.CallAgentId
                      && a.Status == ApplicationStatus.Approved
                      && a.Shift.StartUtc < shift.EndUtc
                      && a.Shift.EndUtc > shift.StartUtc,
@@ -99,7 +99,7 @@ public sealed class ApprovalService
         if (overlapsApproved)
         {
             throw new BusinessRuleViolationException(
-                "The expert has since been approved for a shift that overlaps this one.");
+                "The CallAgent has since been approved for a shift that overlaps this one.");
         }
 
         var decidedAtUtc = _clock.UtcNow;
@@ -143,7 +143,7 @@ public sealed class ApprovalService
             // two approvals raced past the Open check at once.
             await transaction.RollbackAsync(cancellationToken);
             throw new BusinessRuleViolationException(
-                "Another expert has just been approved for this shift.",
+                "Another CallAgent has just been approved for this shift.",
                 exception);
         }
 
@@ -158,11 +158,11 @@ public sealed class ApprovalService
     /// </summary>
     public async Task<ApplicationResponse> RejectAsync(int applicationId, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         var application = await _db.ShiftApplications
             .FirstOrDefaultAsync(
-                a => a.Id == applicationId && a.Shift.Project.EmployerId == employerId,
+                a => a.Id == applicationId && a.Shift.Project.SupervisorId == supervisorId,
                 cancellationToken)
             ?? throw new NotFoundException("Application not found.");
 
@@ -184,7 +184,7 @@ public sealed class ApprovalService
         new(
             a.Id,
             a.ShiftId,
-            a.ExpertId,
+            a.CallAgentId,
             a.Status.ToString(),
             a.AppliedAtUtc,
             a.DecidedByUserId,

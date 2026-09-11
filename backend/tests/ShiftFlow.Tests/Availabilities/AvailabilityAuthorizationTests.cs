@@ -10,23 +10,23 @@ using ShiftFlow.Tests.Support;
 namespace ShiftFlow.Tests.Availabilities;
 
 /// <summary>
-/// CLAUDE.md §7: an expert may only ever read or modify their own availability.
-/// A valid Expert principal pointed at another expert's window — or at an id
+/// CLAUDE.md §7: a CallAgent may only ever read or modify their own availability.
+/// A valid CallAgent principal pointed at another CallAgent's window — or at an id
 /// that does not exist — fails the same way, so ids cannot be probed.
 /// </summary>
 public class AvailabilityAuthorizationTests
 {
     private static DateTime At(int hour) => new(2026, 7, 1, hour, 0, 0, DateTimeKind.Utc);
 
-    private static AvailabilityService ServiceFor(SqliteTestContext ctx, int userId, int expertId) =>
-        new(ctx.Db, StubCurrentUser.Expert(userId, expertId), new TestClock());
+    private static AvailabilityService ServiceFor(SqliteTestContext ctx, int userId, int callAgentId) =>
+        new(ctx.Db, StubCurrentUser.CallAgent(userId, callAgentId), new TestClock());
 
     [Fact]
-    public async Task Reading_another_experts_window_is_NotFound()
+    public async Task Reading_another_call_agents_window_is_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         var janesWindow = ctx.Db.AddAvailability(jane.Id, At(8), At(12));
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -34,10 +34,10 @@ public class AvailabilityAuthorizationTests
     }
 
     [Fact]
-    public async Task Reading_an_unknown_id_with_a_valid_expert_is_also_NotFound()
+    public async Task Reading_an_unknown_id_with_a_valid_call_agent_is_also_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var jane = ctx.Db.AddExpert("Jane Doe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
 
         await Assert.ThrowsAsync<NotFoundException>(() =>
             ServiceFor(ctx, jane.UserId, jane.Id).GetAsync(9999, CancellationToken.None));
@@ -47,8 +47,8 @@ public class AvailabilityAuthorizationTests
     public async Task List_returns_only_the_callers_windows()
     {
         using var ctx = new SqliteTestContext();
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         ctx.Db.AddAvailability(jane.Id, At(8), At(10));
         ctx.Db.AddAvailability(jane.Id, At(12), At(14));
         ctx.Db.AddAvailability(mike.Id, At(9), At(11));
@@ -59,17 +59,17 @@ public class AvailabilityAuthorizationTests
     }
 
     [Fact]
-    public async Task Creating_a_window_never_touches_another_experts_rows()
+    public async Task Creating_a_window_never_touches_another_call_agents_rows()
     {
         using var ctx = new SqliteTestContext();
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         ctx.Db.AddAvailability(mike.Id, At(8), At(12));
 
         await ServiceFor(ctx, jane.UserId, jane.Id)
             .CreateAsync(new AvailabilityRequest { StartUtc = At(8), EndUtc = At(12) }, CancellationToken.None);
 
-        var mikesWindows = ctx.NewContext().Availabilities.Where(a => a.ExpertId == mike.Id).ToList();
+        var mikesWindows = ctx.NewContext().Availabilities.Where(a => a.CallAgentId == mike.Id).ToList();
         Assert.Single(mikesWindows);
         Assert.Equal(At(8), mikesWindows[0].StartUtc);
     }

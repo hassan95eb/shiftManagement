@@ -154,7 +154,7 @@ def test_custom_rating_default_is_honoured():
         (Decimal("176.5"), "Workload 176.5h -> 0.0"),  # fractional, beyond cap
     ],
 )
-def test_expert_at_or_beyond_monthly_cap_scores_zero_workload(approved_hours, token):
+def test_call_agent_at_or_beyond_monthly_cap_scores_zero_workload(approved_hours, token):
     result = score(
         previous_month_rating=Decimal("3.0"),
         approved_hours=approved_hours,
@@ -201,9 +201,9 @@ def test_rounding_is_half_up_not_bankers():
 # --- tie-break -----------------------------------------------------------------
 
 
-def _applicant(expert_id, score_, hours, applied_at):
+def _applicant(call_agent_id, score_, hours, applied_at):
     return RankableApplicant(
-        expert_id=expert_id,
+        call_agent_id=call_agent_id,
         final_score=Decimal(score_),
         approved_hours=Decimal(hours),
         applied_at_utc=applied_at,
@@ -220,7 +220,7 @@ def test_tie_break_orders_by_score_then_hours_then_time_then_id():
 
     ordered = rank([e, d, c, b, a, f])
 
-    assert [x.expert_id for x in ordered] == [1, 2, 3, 4, 5, 6]
+    assert [x.call_agent_id for x in ordered] == [1, 2, 3, 4, 5, 6]
 
 
 def test_sort_key_is_usable_directly_with_sorted():
@@ -229,13 +229,13 @@ def test_sort_key_is_usable_directly_with_sorted():
         _applicant(8, "70.0", "5", "2026-11-01T00:00:00"),
         _applicant(7, "90.0", "99", "2026-11-09T00:00:00"),
     ]
-    assert [x.expert_id for x in sorted(items, key=sort_key)] == [7, 8, 9]
+    assert [x.call_agent_id for x in sorted(items, key=sort_key)] == [7, 8, 9]
 
 
 def test_tie_break_fewer_hours_wins_before_time():
     later_but_lighter = _applicant(1, "50.0", "4", "2026-11-05T00:00:00")
     earlier_but_heavier = _applicant(2, "50.0", "9", "2026-11-01T00:00:00")
-    assert [x.expert_id for x in rank([earlier_but_heavier, later_but_lighter])] == [1, 2]
+    assert [x.call_agent_id for x in rank([earlier_but_heavier, later_but_lighter])] == [1, 2]
 
 
 # --- config ------------------------------------------------------------------

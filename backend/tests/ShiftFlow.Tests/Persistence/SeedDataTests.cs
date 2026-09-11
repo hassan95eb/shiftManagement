@@ -29,19 +29,19 @@ public sealed class SeedDataTests
 
         var db = ctx.NewContext();
 
-        Assert.Equal(2, await db.Employers.CountAsync());
-        Assert.Equal(7, await db.Experts.CountAsync());
+        Assert.Equal(2, await db.Supervisors.CountAsync());
+        Assert.Equal(7, await db.CallAgents.CountAsync());
         Assert.Equal(9, await db.Users.CountAsync());
         Assert.Equal(3, await db.Projects.CountAsync());
         Assert.Equal(5, await db.Shifts.CountAsync());
         Assert.Equal(6, await db.ShiftApplications.CountAsync());
         Assert.Equal(3, await db.Recommendations.CountAsync());
 
-        // Both employer accounts exist and are hashed, not stored in the clear.
-        var employer = await db.Users.SingleAsync(u => u.Username == SeedData.EmployerUsername);
-        Assert.Equal(UserRole.Employer, employer.Role);
-        Assert.NotEqual(SeedData.DemoPassword, employer.PasswordHash);
-        Assert.True(await db.Users.AnyAsync(u => u.Username == SeedData.RivalEmployerUsername));
+        // Both supervisor accounts exist and are hashed, not stored in the clear.
+        var supervisor = await db.Users.SingleAsync(u => u.Username == SeedData.SupervisorUsername);
+        Assert.Equal(UserRole.Supervisor, supervisor.Role);
+        Assert.NotEqual(SeedData.DemoPassword, supervisor.PasswordHash);
+        Assert.True(await db.Users.AnyAsync(u => u.Username == SeedData.RivalSupervisorUsername));
 
         // One completed decision: a shift Closed with exactly one Approved row and
         // a sibling Rejected carrying the cascade note.
@@ -50,7 +50,7 @@ public sealed class SeedDataTests
         var decisions = await db.ShiftApplications.Where(a => a.ShiftId == closed.Id).ToListAsync();
         Assert.Equal(1, decisions.Count(a => a.Status == ApplicationStatus.Approved));
         var rejected = Assert.Single(decisions, a => a.Status == ApplicationStatus.Rejected);
-        Assert.Equal("Shift filled by another expert.", rejected.DecisionNote);
+        Assert.Equal("Shift filled by another CallAgent.", rejected.DecisionNote);
         Assert.All(decisions, a => Assert.NotNull(a.DecidedByUserId));
     }
 
@@ -70,22 +70,22 @@ public sealed class SeedDataTests
         Assert.NotEmpty(pending);
         foreach (var application in pending)
         {
-            // Rule 2: the expert is assigned to the shift's project.
-            Assert.True(await db.ExpertProjects.AnyAsync(ep =>
-                ep.ExpertId == application.ExpertId && ep.ProjectId == application.Shift.ProjectId));
+            // Rule 2: the CallAgent is assigned to the shift's project.
+            Assert.True(await db.CallAgentProjects.AnyAsync(ep =>
+                ep.CallAgentId == application.CallAgentId && ep.ProjectId == application.Shift.ProjectId));
 
             // Rule 1: the shift is Open.
             Assert.Equal(ShiftStatus.Open, application.Shift.Status);
 
             // Rule 3: one availability window covers the whole shift.
             Assert.True(await db.Availabilities.AnyAsync(w =>
-                w.ExpertId == application.ExpertId
+                w.CallAgentId == application.CallAgentId
                 && w.StartUtc <= application.Shift.StartUtc
                 && w.EndUtc >= application.Shift.EndUtc));
 
-            // Rule 5: no overlapping shift the same expert is already approved for.
+            // Rule 5: no overlapping shift the same CallAgent is already approved for.
             Assert.False(await db.ShiftApplications.AnyAsync(other =>
-                other.ExpertId == application.ExpertId
+                other.CallAgentId == application.CallAgentId
                 && other.Status == ApplicationStatus.Approved
                 && other.Shift.StartUtc < application.Shift.EndUtc
                 && other.Shift.EndUtc > application.Shift.StartUtc));
@@ -128,10 +128,10 @@ public sealed class SeedDataTests
         var db = ctx.NewContext();
 
         // The pool shift starts in 2026-11, so 2026-10 is the "previous month".
-        Assert.True(await db.ExpertRatings.CountAsync(r => r.Period == "2026-10") >= 4);
+        Assert.True(await db.Ratings.CountAsync(r => r.Period == "2026-10") >= 4);
 
-        var kite = await db.Experts.SingleAsync(e => e.FullName == "Kite Tanaka");
-        Assert.False(await db.ExpertRatings.AnyAsync(r => r.ExpertId == kite.Id));
+        var kite = await db.CallAgents.SingleAsync(e => e.FullName == "Kite Tanaka");
+        Assert.False(await db.Ratings.AnyAsync(r => r.CallAgentId == kite.Id));
     }
 
     [Fact]
@@ -145,11 +145,11 @@ public sealed class SeedDataTests
         var db = ctx.NewContext();
 
         Assert.Equal(9, await db.Users.CountAsync());
-        Assert.Equal(7, await db.Experts.CountAsync());
+        Assert.Equal(7, await db.CallAgents.CountAsync());
         Assert.Equal(3, await db.Projects.CountAsync());
         Assert.Equal(5, await db.Shifts.CountAsync());
         Assert.Equal(6, await db.ShiftApplications.CountAsync());
         Assert.Equal(3, await db.Recommendations.CountAsync());
-        Assert.Equal(6, await db.ExpertRatings.CountAsync());
+        Assert.Equal(6, await db.Ratings.CountAsync());
     }
 }

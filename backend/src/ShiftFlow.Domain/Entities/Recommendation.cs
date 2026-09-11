@@ -1,11 +1,11 @@
 namespace ShiftFlow.Domain.Entities;
 
 /// <summary>
-/// The recommendation score and human-readable reason for one (shift, expert)
+/// The recommendation score and human-readable reason for one (shift, CallAgent)
 /// pair, written only by the Python script via MERGE. Unique on
-/// (ShiftId, ExpertId), so re-running the script updates in place rather than
+/// (ShiftId, CallAgentId), so re-running the script updates in place rather than
 /// inserting duplicates (docs/01-erd-and-schema.md §3-10). Shift side CASCADE,
-/// Expert side NO ACTION (docs/01 §4).
+/// CallAgent side NO ACTION (docs/01 §4).
 /// </summary>
 public class Recommendation
 {
@@ -14,8 +14,8 @@ public class Recommendation
     // FK -> Shifts. CASCADE on delete.
     public int ShiftId { get; set; }
 
-    // FK -> Experts. NO ACTION on delete.
-    public int ExpertId { get; set; }
+    // FK -> CallAgents. NO ACTION on delete.
+    public int CallAgentId { get; set; }
 
     // DECIMAL(5,2), CHECK (Score BETWEEN 0 AND 100).
     public decimal Score { get; set; }
@@ -29,5 +29,5 @@ public class Recommendation
     // Navigation
     public Shift Shift { get; set; } = null!;
 
-    public Expert Expert { get; set; } = null!;
+    public CallAgent CallAgent { get; set; } = null!;
 }

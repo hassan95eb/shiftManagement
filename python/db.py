@@ -10,7 +10,7 @@ to SQL Server lives here:
   shift's month, the approved hours *in* the shift's month, and the availability
   window that covers the shift;
 * :meth:`RecommenderDb.merge_shift` writes the results back with a single
-  idempotent ``MERGE`` keyed on ``(ShiftId, ExpertId)`` (docs/01 #3-10).
+  idempotent ``MERGE`` keyed on ``(ShiftId, CallAgentId)`` (docs/01 #3-10).
 
 ``Recommendations`` is the only table ever written (docs/01 #4). The ``MERGE``
 also carries a ``WHEN NOT MATCHED BY SOURCE`` arm so a row whose applicant can no
@@ -65,7 +65,7 @@ class ScoredRow:
     """A scored applicant, ready to be written to ``Recommendations``."""
 
     shift_id: int
-    expert_id: int
+    call_agent_id: int
     score: Decimal
     reason: str
 
@@ -105,7 +105,7 @@ def month_bounds(moment: datetime) -> tuple[datetime, datetime]:
 
 
 def previous_period(moment: datetime) -> str:
-    """The ``ExpertRatings.Period`` string (``YYYY-MM``) for the month *before*
+    """The ``Ratings.Period`` string (``YYYY-MM``) for the month *before*
     ``moment``'s month."""
     year, month = moment.year, moment.month
     if month == 1:
@@ -158,8 +158,8 @@ class RecommenderDb:
         )
         return [OpenShift(r["Id"], r["StartUtc"], r["EndUtc"]) for r in rows]
 
-    def pending_applicant_expert_ids(self, shift_id: int) -> list[int]:
-        """Experts with a ``Pending`` application to this shift, in
+    def pending_applicant_call_agent_ids(self, shift_id: int) -> list[int]:
+        """CallAgents with a ``Pending`` application to this shift, in
         ``AppliedAtUtc`` order.
 
         Only ``Pending`` -- a ``Rejected`` applicant has been turned down, and an
@@ -169,31 +169,31 @@ class RecommenderDb:
         """
         rows = self._query(
             """
-            SELECT ExpertId
+            SELECT CallAgentId
             FROM ShiftApplications
             WHERE ShiftId = %s AND Status = 'Pending'
             ORDER BY AppliedAtUtc, Id
             """,
             (shift_id,),
         )
-        return [r["ExpertId"] for r in rows]
+        return [r["CallAgentId"] for r in rows]
 
-    def is_project_member(self, expert_id: int, shift_id: int) -> bool:
-        """Apply rule 2: the expert is assigned to the shift's project."""
+    def is_project_member(self, call_agent_id: int, shift_id: int) -> bool:
+        """Apply rule 2: the call_agent is assigned to the shift's project."""
         rows = self._query(
             """
             SELECT 1 AS Ok
             FROM Shifts s
-            JOIN ExpertProjects ep ON ep.ProjectId = s.ProjectId
-            WHERE s.Id = %s AND ep.ExpertId = %s
+            JOIN CallAgentProjects ep ON ep.ProjectId = s.ProjectId
+            WHERE s.Id = %s AND ep.CallAgentId = %s
             """,
-            (shift_id, expert_id),
+            (shift_id, call_agent_id),
         )
         return bool(rows)
 
-    def covering_window_hours(self, expert_id: int, shift: OpenShift) -> Optional[Decimal]:
+    def covering_window_hours(self, call_agent_id: int, shift: OpenShift) -> Optional[Decimal]:
         """Apply rule 3: the duration of the availability window that contains
-        the whole shift, or ``None`` if the expert has none.
+        the whole shift, or ``None`` if the call_agent has none.
 
         Phase 7 merges overlapping and adjacent windows on write, so at most one
         window can contain a given shift. The ``TOP 1 ... ORDER BY`` is a
@@ -204,31 +204,31 @@ class RecommenderDb:
             """
             SELECT TOP 1 StartUtc, EndUtc
             FROM Availabilities
-            WHERE ExpertId = %s AND StartUtc <= %s AND EndUtc >= %s
+            WHERE CallAgentId = %s AND StartUtc <= %s AND EndUtc >= %s
             ORDER BY DATEDIFF(SECOND, StartUtc, EndUtc), Id
             """,
-            (expert_id, shift.start_utc, shift.end_utc),
+            (call_agent_id, shift.start_utc, shift.end_utc),
         )
         if not rows:
             return None
         return hours_between(rows[0]["StartUtc"], rows[0]["EndUtc"])
 
-    def previous_month_rating(self, expert_id: int, shift: OpenShift) -> Optional[Decimal]:
-        """``ExpertRatings.Score`` for the month before the shift's month, or
-        ``None`` when the expert has no row (``scoring.py`` then applies the
+    def previous_month_rating(self, call_agent_id: int, shift: OpenShift) -> Optional[Decimal]:
+        """``Ratings.Score`` for the month before the shift's month, or
+        ``None`` when the call_agent has no row (``scoring.py`` then applies the
         configured default)."""
         rows = self._query(
-            "SELECT Score FROM ExpertRatings WHERE ExpertId = %s AND Period = %s",
-            (expert_id, previous_period(shift.start_utc)),
+            "SELECT Score FROM Ratings WHERE CallAgentId = %s AND Period = %s",
+            (call_agent_id, previous_period(shift.start_utc)),
         )
         return rows[0]["Score"] if rows else None
 
-    def approved_shift_spans(self, expert_id: int) -> list[tuple[datetime, datetime]]:
-        """Every ``(StartUtc, EndUtc)`` the expert is approved for.
+    def approved_shift_spans(self, call_agent_id: int) -> list[tuple[datetime, datetime]]:
+        """Every ``(StartUtc, EndUtc)`` the call_agent is approved for.
 
         Summing durations has no provider-agnostic SQL form, and the same set
         answers apply rule 5, so both are computed in Python from this one read
-        (the mirror of ``RecommendationService`` on the C# side). An expert has
+        (the mirror of ``RecommendationService`` on the C# side). An call_agent has
         few approved shifts, so the set stays small.
         """
         rows = self._query(
@@ -236,9 +236,9 @@ class RecommenderDb:
             SELECT s.StartUtc, s.EndUtc
             FROM ShiftApplications a
             JOIN Shifts s ON s.Id = a.ShiftId
-            WHERE a.ExpertId = %s AND a.Status = 'Approved'
+            WHERE a.CallAgentId = %s AND a.Status = 'Approved'
             """,
-            (expert_id,),
+            (call_agent_id,),
         )
         return [(r["StartUtc"], r["EndUtc"]) for r in rows]
 
@@ -252,7 +252,7 @@ class RecommenderDb:
     ) -> MergeStats:
         """Reconcile ``Recommendations`` for one shift with ``rows``.
 
-        * a ``(ShiftId, ExpertId)`` in ``rows`` but not in the table -> INSERT;
+        * a ``(ShiftId, CallAgentId)`` in ``rows`` but not in the table -> INSERT;
         * one in both, with a different ``Score`` or ``Reason`` -> UPDATE (and
           ``ComputedAtUtc`` is bumped);
         * one in both and unchanged -> left exactly as it is, so a re-run with no
@@ -275,22 +275,22 @@ class RecommenderDb:
         values = ",\n                ".join(["(%s, %s, %s, %s, %s)"] * len(rows))
         params: list[object] = []
         for r in rows:
-            params += [r.shift_id, r.expert_id, r.score, r.reason, computed_at]
+            params += [r.shift_id, r.call_agent_id, r.score, r.reason, computed_at]
         params.append(shift_id)
 
         sql = f"""
             MERGE INTO Recommendations WITH (HOLDLOCK) AS tgt
             USING (VALUES
                 {values}
-            ) AS src (ShiftId, ExpertId, Score, Reason, ComputedAtUtc)
-                ON tgt.ShiftId = src.ShiftId AND tgt.ExpertId = src.ExpertId
+            ) AS src (ShiftId, CallAgentId, Score, Reason, ComputedAtUtc)
+                ON tgt.ShiftId = src.ShiftId AND tgt.CallAgentId = src.CallAgentId
             WHEN MATCHED AND (tgt.Score <> src.Score OR tgt.Reason <> src.Reason) THEN
                 UPDATE SET Score = src.Score,
                            Reason = src.Reason,
                            ComputedAtUtc = src.ComputedAtUtc
             WHEN NOT MATCHED BY TARGET THEN
-                INSERT (ShiftId, ExpertId, Score, Reason, ComputedAtUtc)
-                VALUES (src.ShiftId, src.ExpertId, src.Score, src.Reason, src.ComputedAtUtc)
+                INSERT (ShiftId, CallAgentId, Score, Reason, ComputedAtUtc)
+                VALUES (src.ShiftId, src.CallAgentId, src.Score, src.Reason, src.ComputedAtUtc)
             WHEN NOT MATCHED BY SOURCE AND tgt.ShiftId = %s THEN
                 DELETE
             OUTPUT $action AS Action;

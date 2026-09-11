@@ -3,7 +3,7 @@ using ShiftFlow.Domain.Enums;
 namespace ShiftFlow.Domain.Entities;
 
 /// <summary>
-/// An open slot on a project that one expert can be approved for. Both bounds
+/// An open slot on a project that one CallAgent can be approved for. Both bounds
 /// are full <c>DATETIME2</c> values, so an overnight shift (22:00–02:00) needs
 /// no extra flag (docs/01-erd-and-schema.md §2, §3-7).
 /// </summary>

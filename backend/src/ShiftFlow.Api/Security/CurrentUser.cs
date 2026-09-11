@@ -60,19 +60,19 @@ public sealed class CurrentUser : ICurrentUser
         }
     }
 
-    public int? EmployerId => ReadOptionalInt(ClaimNames.EmployerId);
+    public int? SupervisorId => ReadOptionalInt(ClaimNames.SupervisorId);
 
-    public int? ExpertId => ReadOptionalInt(ClaimNames.ExpertId);
+    public int? CallAgentId => ReadOptionalInt(ClaimNames.CallAgentId);
 
-    public int RequireEmployerId() =>
-        EmployerId ?? throw new InvalidOperationException(
-            $"The authenticated principal has no '{ClaimNames.EmployerId}' claim; "
-            + "an Employer-scoped operation was reached without one.");
+    public int RequireSupervisorId() =>
+        SupervisorId ?? throw new InvalidOperationException(
+            $"The authenticated principal has no '{ClaimNames.SupervisorId}' claim; "
+            + "a Supervisor-scoped operation was reached without one.");
 
-    public int RequireExpertId() =>
-        ExpertId ?? throw new InvalidOperationException(
-            $"The authenticated principal has no '{ClaimNames.ExpertId}' claim; "
-            + "an Expert-scoped operation was reached without one.");
+    public int RequireCallAgentId() =>
+        CallAgentId ?? throw new InvalidOperationException(
+            $"The authenticated principal has no '{ClaimNames.CallAgentId}' claim; "
+            + "a CallAgent-scoped operation was reached without one.");
 
     private ClaimsPrincipal AuthenticatedPrincipal()
     {

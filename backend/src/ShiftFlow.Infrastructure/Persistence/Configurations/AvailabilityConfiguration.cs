@@ -5,7 +5,7 @@ using ShiftFlow.Domain.Entities;
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// docs/01-erd-and-schema.md §3-6. Availabilities → Experts: CASCADE (§4).
+/// docs/01-erd-and-schema.md §3-6. Availabilities → CallAgents: CASCADE (§4).
 /// The "no overlapping/adjacent windows" rule is enforced in the service layer
 /// by merge-on-insert, not in the database.
 /// </summary>
@@ -30,12 +30,12 @@ public sealed class AvailabilityConfiguration : IEntityTypeConfiguration<Availab
             .IsRequired()
             .HasColumnType("datetime2(0)");
 
-        builder.HasIndex(a => new { a.ExpertId, a.StartUtc, a.EndUtc })
-            .HasDatabaseName("IX_Availabilities_Expert_Range");
+        builder.HasIndex(a => new { a.CallAgentId, a.StartUtc, a.EndUtc })
+            .HasDatabaseName("IX_Availabilities_CallAgent_Range");
 
-        builder.HasOne(a => a.Expert)
+        builder.HasOne(a => a.CallAgent)
             .WithMany(e => e.Availabilities)
-            .HasForeignKey(a => a.ExpertId)
+            .HasForeignKey(a => a.CallAgentId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }

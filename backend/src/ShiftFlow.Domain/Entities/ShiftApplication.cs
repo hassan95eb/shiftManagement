@@ -3,10 +3,10 @@ using ShiftFlow.Domain.Enums;
 namespace ShiftFlow.Domain.Entities;
 
 /// <summary>
-/// An expert's application to a shift. Unique on (ShiftId, ExpertId); a filtered
+/// A CallAgent's application to a shift. Unique on (ShiftId, CallAgentId); a filtered
 /// unique index allows at most one <see cref="ApplicationStatus.Approved"/> row
 /// per shift. The three Decided* columns are the decision audit trail
-/// (docs/01-erd-and-schema.md §3-8). Shift side CASCADE, Expert and
+/// (docs/01-erd-and-schema.md §3-8). Shift side CASCADE, CallAgent and
 /// DecidedByUser sides NO ACTION (docs/01 §4).
 /// </summary>
 public class ShiftApplication
@@ -16,8 +16,8 @@ public class ShiftApplication
     // FK -> Shifts. CASCADE on delete.
     public int ShiftId { get; set; }
 
-    // FK -> Experts. NO ACTION on delete.
-    public int ExpertId { get; set; }
+    // FK -> CallAgents. NO ACTION on delete.
+    public int CallAgentId { get; set; }
 
     public ApplicationStatus Status { get; set; }
 
@@ -34,7 +34,7 @@ public class ShiftApplication
     // Navigation
     public Shift Shift { get; set; } = null!;
 
-    public Expert Expert { get; set; } = null!;
+    public CallAgent CallAgent { get; set; } = null!;
 
     public User? DecidedByUser { get; set; }
 }

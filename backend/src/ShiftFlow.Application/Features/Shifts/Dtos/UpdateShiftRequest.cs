@@ -3,8 +3,8 @@ using System.ComponentModel.DataAnnotations;
 namespace ShiftFlow.Application.Features.Shifts.Dtos;
 
 /// <summary>
-/// Body of <c>PUT /api/shifts/{id}</c> — the only mutation an employer may make
-/// to an existing shift, and only while it is still <c>Open</c> and no expert
+/// Body of <c>PUT /api/shifts/{id}</c> — the only mutation a supervisor may make
+/// to an existing shift, and only while it is still <c>Open</c> and no CallAgent
 /// has applied to it yet (see the phase report for why time is otherwise frozen
 /// and why status is never set here).
 /// </summary>

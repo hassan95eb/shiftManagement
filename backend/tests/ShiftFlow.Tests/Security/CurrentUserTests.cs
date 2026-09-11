@@ -33,8 +33,8 @@ public class CurrentUserTests
         Assert.False(current.IsAuthenticated);
         Assert.Throws<InvalidOperationException>(() => current.UserId);
         Assert.Throws<InvalidOperationException>(() => current.Role);
-        Assert.Null(current.EmployerId);
-        Assert.Null(current.ExpertId);
+        Assert.Null(current.SupervisorId);
+        Assert.Null(current.CallAgentId);
     }
 
     [Fact]
@@ -46,18 +46,18 @@ public class CurrentUserTests
         Assert.False(current.IsAuthenticated);
         Assert.Throws<InvalidOperationException>(() => current.UserId);
         Assert.Throws<InvalidOperationException>(() => current.Role);
-        Assert.Null(current.EmployerId);
-        Assert.Null(current.ExpertId);
+        Assert.Null(current.SupervisorId);
+        Assert.Null(current.CallAgentId);
     }
 
     [Fact]
     public void Authenticated_but_missing_sub_throws_on_UserId()
     {
-        var current = For(WithPrincipal(Authenticated(new Claim(ClaimNames.Role, "Employer"))));
+        var current = For(WithPrincipal(Authenticated(new Claim(ClaimNames.Role, "Supervisor"))));
 
         Assert.True(current.IsAuthenticated);
         Assert.Throws<InvalidOperationException>(() => current.UserId);
-        Assert.Equal(UserRole.Employer, current.Role);
+        Assert.Equal(UserRole.Supervisor, current.Role);
     }
 
     [Fact]
@@ -65,7 +65,7 @@ public class CurrentUserTests
     {
         var current = For(WithPrincipal(Authenticated(
             new Claim(ClaimNames.Sub, "not-a-number"),
-            new Claim(ClaimNames.Role, "Expert"))));
+            new Claim(ClaimNames.Role, "CallAgent"))));
 
         Assert.Throws<InvalidOperationException>(() => current.UserId);
     }
@@ -93,51 +93,51 @@ public class CurrentUserTests
     }
 
     [Fact]
-    public void Well_formed_employer_principal_is_projected()
+    public void Well_formed_supervisor_principal_is_projected()
     {
         var current = For(WithPrincipal(Authenticated(
             new Claim(ClaimNames.Sub, "7"),
-            new Claim(ClaimNames.Role, "Employer"),
-            new Claim(ClaimNames.EmployerId, "42"))));
+            new Claim(ClaimNames.Role, "Supervisor"),
+            new Claim(ClaimNames.SupervisorId, "42"))));
 
         Assert.True(current.IsAuthenticated);
         Assert.Equal(7, current.UserId);
-        Assert.Equal(UserRole.Employer, current.Role);
-        Assert.Equal(42, current.EmployerId);
-        Assert.Null(current.ExpertId);
+        Assert.Equal(UserRole.Supervisor, current.Role);
+        Assert.Equal(42, current.SupervisorId);
+        Assert.Null(current.CallAgentId);
     }
 
     [Fact]
-    public void RequireEmployerId_returns_the_id_when_present_and_throws_when_absent()
+    public void RequireSupervisorId_returns_the_id_when_present_and_throws_when_absent()
     {
-        var employer = For(WithPrincipal(Authenticated(
+        var supervisor = For(WithPrincipal(Authenticated(
             new Claim(ClaimNames.Sub, "7"),
-            new Claim(ClaimNames.Role, "Employer"),
-            new Claim(ClaimNames.EmployerId, "42"))));
-        Assert.Equal(42, employer.RequireEmployerId());
+            new Claim(ClaimNames.Role, "Supervisor"),
+            new Claim(ClaimNames.SupervisorId, "42"))));
+        Assert.Equal(42, supervisor.RequireSupervisorId());
 
-        // An Employer-role token without the employerId claim: an ownership
+        // A Supervisor-role token without the supervisorId claim: an ownership
         // filter must fail loudly, not silently compare against null.
         var missing = For(WithPrincipal(Authenticated(
             new Claim(ClaimNames.Sub, "7"),
-            new Claim(ClaimNames.Role, "Employer"))));
-        Assert.Throws<InvalidOperationException>(() => missing.RequireEmployerId());
+            new Claim(ClaimNames.Role, "Supervisor"))));
+        Assert.Throws<InvalidOperationException>(() => missing.RequireSupervisorId());
     }
 
     [Fact]
-    public void RequireExpertId_returns_the_id_when_present_and_throws_when_absent()
+    public void RequireCallAgentId_returns_the_id_when_present_and_throws_when_absent()
     {
-        var expert = For(WithPrincipal(Authenticated(
+        var callAgent = For(WithPrincipal(Authenticated(
             new Claim(ClaimNames.Sub, "3"),
-            new Claim(ClaimNames.Role, "Expert"),
-            new Claim(ClaimNames.ExpertId, "99"))));
-        Assert.Equal(99, expert.RequireExpertId());
+            new Claim(ClaimNames.Role, "CallAgent"),
+            new Claim(ClaimNames.CallAgentId, "99"))));
+        Assert.Equal(99, callAgent.RequireCallAgentId());
 
-        var employer = For(WithPrincipal(Authenticated(
+        var supervisor = For(WithPrincipal(Authenticated(
             new Claim(ClaimNames.Sub, "7"),
-            new Claim(ClaimNames.Role, "Employer"),
-            new Claim(ClaimNames.EmployerId, "42"))));
-        Assert.Throws<InvalidOperationException>(() => employer.RequireExpertId());
+            new Claim(ClaimNames.Role, "Supervisor"),
+            new Claim(ClaimNames.SupervisorId, "42"))));
+        Assert.Throws<InvalidOperationException>(() => supervisor.RequireCallAgentId());
     }
 
     [Fact]
@@ -145,7 +145,7 @@ public class CurrentUserTests
     {
         var current = For(context: null);
 
-        Assert.Throws<InvalidOperationException>(() => current.RequireEmployerId());
-        Assert.Throws<InvalidOperationException>(() => current.RequireExpertId());
+        Assert.Throws<InvalidOperationException>(() => current.RequireSupervisorId());
+        Assert.Throws<InvalidOperationException>(() => current.RequireCallAgentId());
     }
 }

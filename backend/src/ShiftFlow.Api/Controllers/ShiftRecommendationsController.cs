@@ -8,15 +8,15 @@ using ShiftFlow.Application.Features.Recommendations.Dtos;
 namespace ShiftFlow.Api.Controllers;
 
 /// <summary>
-/// Employer-only, read-only: the applicant ranking for one of the caller's own
+/// Supervisor-only, read-only: the applicant ranking for one of the caller's own
 /// shifts, best score first with the CLAUDE.md §5 tie-break applied. The rows
 /// are written by the Python recommender in a later phase; this endpoint never
-/// writes. A shift on another employer's project — or an unknown id — responds
+/// writes. A shift on another supervisor's project — or an unknown id — responds
 /// as 404 (CLAUDE.md §7); an empty array means the recommender has not run yet.
 /// </summary>
 [ApiController]
 [Route("api/shifts/{shiftId:int}/recommendations")]
-[Authorize(Roles = RoleNames.Employer)]
+[Authorize(Roles = RoleNames.Supervisor)]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]

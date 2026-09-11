@@ -11,7 +11,7 @@ using ShiftFlow.Tests.Support;
 namespace ShiftFlow.Tests.Applications;
 
 /// <summary>
-/// One expert per shift (CLAUDE.md §5). Once an application is approved the shift
+/// One CallAgent per shift (CLAUDE.md §5). Once an application is approved the shift
 /// is Closed, so a second approval — on any application of that shift — is
 /// refused, and the first approval stands untouched.
 /// </summary>
@@ -23,31 +23,31 @@ public class ApproveApplication_SecondApprovalTests
 
     private static DateTime On(int day) => new(2026, 6, day, 12, 0, 0, DateTimeKind.Utc);
 
-    private static ApprovalService ServiceFor(SqliteTestContext ctx, Employer employer) =>
-        new(ctx.Db, StubCurrentUser.Employer(employer.UserId, employer.Id), new TestClock(Now));
+    private static ApprovalService ServiceFor(SqliteTestContext ctx, Supervisor supervisor) =>
+        new(ctx.Db, StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id), new TestClock(Now));
 
     [Fact]
     public async Task A_second_approval_on_the_same_shift_fails_and_the_first_stands()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
 
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         ctx.Db.Assign(jane.Id, project.Id);
         ctx.Db.Assign(mike.Id, project.Id);
 
         var janeApp = ctx.Db.AddApplication(shift.Id, jane.Id, ApplicationStatus.Pending, On(1));
         var mikeApp = ctx.Db.AddApplication(shift.Id, mike.Id, ApplicationStatus.Pending, On(2));
 
-        await ServiceFor(ctx, employer).ApproveAsync(janeApp.Id, CancellationToken.None);
+        await ServiceFor(ctx, supervisor).ApproveAsync(janeApp.Id, CancellationToken.None);
 
         // Mike's row was auto-rejected by Jane's approval; approving it now is
         // refused because the shift is Closed.
         await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
-            ServiceFor(ctx, employer).ApproveAsync(mikeApp.Id, CancellationToken.None));
+            ServiceFor(ctx, supervisor).ApproveAsync(mikeApp.Id, CancellationToken.None));
 
         var db = ctx.NewContext();
         Assert.Equal(ApplicationStatus.Approved, (await db.ShiftApplications.SingleAsync(a => a.Id == janeApp.Id)).Status);

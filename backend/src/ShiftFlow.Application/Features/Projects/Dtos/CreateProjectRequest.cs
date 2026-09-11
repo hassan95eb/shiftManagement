@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ShiftFlow.Application.Features.Projects.Dtos;
 
-/// <summary>Body of <c>POST /api/projects</c>. The owning employer comes from the token, never the body.</summary>
+/// <summary>Body of <c>POST /api/projects</c>. The owning supervisor comes from the token, never the body.</summary>
 public sealed class CreateProjectRequest
 {
     [Required]

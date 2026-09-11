@@ -7,8 +7,8 @@ using ShiftFlow.Application.Features.Applications.Dtos;
 namespace ShiftFlow.Api.Controllers;
 
 /// <summary>
-/// Application history, for both roles. An expert gets their own applications; an
-/// employer gets the applications on shifts of their own projects. The role
+/// Application history, for both roles. A CallAgent gets their own applications; an
+/// supervisor gets the applications on shifts of their own projects. The role
 /// split and the ownership scoping live in <see cref="ApplicationService"/>, so
 /// this endpoint needs no role restriction beyond authentication — there is no
 /// third role and neither branch can see the other's rows (CLAUDE.md §7).

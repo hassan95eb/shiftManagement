@@ -8,15 +8,15 @@ using ShiftFlow.Application.Features.Shifts.Dtos;
 namespace ShiftFlow.Api.Controllers;
 
 /// <summary>
-/// Employer-only shift management. Every action is scoped to the caller's own
-/// projects inside the service; a shift on another employer's project responds
+/// Supervisor-only shift management. Every action is scoped to the caller's own
+/// projects inside the service; a shift on another supervisor's project responds
 /// as 404, not 403 (CLAUDE.md §7). An existing shift can only have its schedule
 /// corrected, and only while it is Open with no applications — there is
 /// deliberately no status write and no delete here (see the phase report).
 /// </summary>
 [ApiController]
 [Route("api/shifts")]
-[Authorize(Roles = RoleNames.Employer)]
+[Authorize(Roles = RoleNames.Supervisor)]
 [Produces("application/json")]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status401Unauthorized)]
 [ProducesResponseType(typeof(ApiError), StatusCodes.Status403Forbidden)]
@@ -29,7 +29,7 @@ public sealed class ShiftsController : ControllerBase
         _shifts = shifts;
     }
 
-    /// <summary>Creates an Open shift on one of the calling employer's projects.</summary>
+    /// <summary>Creates an Open shift on one of the calling supervisor's projects.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(ShiftResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
@@ -43,7 +43,7 @@ public sealed class ShiftsController : ControllerBase
     }
 
     /// <summary>
-    /// Lists the calling employer's shifts, newest start first. Optional query
+    /// Lists the calling supervisor's shifts, newest start first. Optional query
     /// filters: <c>projectId</c>, <c>status</c> (<c>Open</c>/<c>Closed</c>),
     /// <c>fromUtc</c>, <c>toUtc</c> (both bound the start time, inclusive).
     /// </summary>
@@ -55,7 +55,7 @@ public sealed class ShiftsController : ControllerBase
         CancellationToken cancellationToken) =>
         Ok(await _shifts.ListAsync(filter, cancellationToken));
 
-    /// <summary>Gets one of the calling employer's shifts by id.</summary>
+    /// <summary>Gets one of the calling supervisor's shifts by id.</summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(ShiftResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiError), StatusCodes.Status404NotFound)]

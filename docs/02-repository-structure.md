@@ -72,6 +72,39 @@ shiftflow/
 
 پوشه‌ی `docs/` عمداً هست. Reviewer وقتی می‌بیند طراحی **قبل** از کد مستند شده، برداشتش از پروژه کاملاً فرق می‌کند.
 
+### تولید و split کردن `database/01-schema.sql` و `02-indexes.sql`
+
+این دو فایل همیشه با همین یک فرمان تولید می‌شوند — این استاندارد ثابت پروژه است،
+نه یک انتخاب یک‌باره:
+
+```
+dotnet ef migrations script --idempotent --no-transactions
+```
+
+Split بر اساس **نوع statement** انجام می‌شود، نه موقعیتش در فایل تولیدشده
+(موقعیت فقط تا وقتی جواب می‌دهد که پروژه یک migration داشته باشد؛ از migration
+دوم به بعد rename‌ها به index‌هایی نیاز دارند که migration اول ساخته، پس ترتیب
+واقعی migration‌ها باید حفظ شود):
+
+- **`01-schema.sql`**: هر `CREATE TABLE`، و هر rename روی table / column / PK /
+  FK / CHECK constraint، از هر migration، به‌ترتیب migration. وسط فایل ممکن
+  است هنوز اسم قدیمی یک migration دیده شود، ولی فایل همیشه با اسم‌های نهایی
+  (فعلی) تمام می‌شود.
+- **`02-indexes.sql`**: فقط `CREATE INDEX` / `CREATE UNIQUE INDEX` و rename
+  روی index‌ها، به‌علاوه ردیف‌های `__EFMigrationsHistory`. PK جزو `01` حساب
+  می‌شود (مفهوماً بخشی از shape جدول است، نه یک index مستقل) حتی وقتی EF آن
+  را با `sp_rename ... 'INDEX'` پیاده می‌کند.
+  - یک `CREATE INDEX` که از یک migration قدیمی‌تر آمده و جدول/ستونش در `01`
+    rename شده، باید با اسم **فعلی** (بعد از rename) نوشته شود، نه اسمی که آن
+    migration اصلاً تولید کرده — چون وقتی `02` اجرا می‌شود، `01` قبلاً کامل
+    اجرا شده. اسم خودِ index دست‌نخورده می‌ماند (guard آن هم روی همان migration
+    قدیمی‌تر می‌ماند)؛ rename بعدی — که عیناً از خروجی EF کپی می‌شود، بدون هیچ
+    تغییری — آن را به اسم فعلی تغییر می‌دهد.
+  - ردیف `__EFMigrationsHistory` هر migration باید **بعد از آخرین statement‌ی
+    که با آن migration guard شده** بیاید، نه زودتر — وگرنه statement‌های بعدی
+    که روی همان migration id چک می‌کنند فکر می‌کنند قبلاً اجرا شده‌اند و خودشان
+    را skip می‌کنند.
+
 ---
 
 ## ۳. ساختار داخلی Backend
@@ -81,9 +114,9 @@ shiftflow/
 
 ```text
 Domain/
-├── Entities/          User, Employer, Expert, Project, ExpertProject,
+├── Entities/          User, Supervisor, CallAgent, Project, CallAgentProject,
 │                      Availability, Shift, ShiftApplication,
-│                      ExpertRating, Recommendation
+│                      Rating, Recommendation
 ├── Enums/             UserRole, ShiftStatus, ApplicationStatus
 └── Exceptions/        DomainException, BusinessRuleViolationException
 ```
@@ -103,7 +136,7 @@ Application/
 ├── Features/
 │   ├── Auth/            LoginService + DTOs
 │   ├── Projects/
-│   ├── Experts/
+│   ├── CallAgents/
 │   ├── Availabilities/  ← منطق Merge اینجاست
 │   ├── Shifts/
 │   ├── Applications/    ← پنج Business Rule اینجاست
@@ -182,7 +215,7 @@ frontend/src/
 ├── features/
 │   ├── auth/           api.ts · types.ts · hooks.ts · pages/
 │   ├── projects/
-│   ├── experts/
+│   ├── call-agents/
 │   ├── availability/
 │   ├── shifts/
 │   ├── applications/
@@ -293,7 +326,7 @@ main
  ├── feat/project-scaffold
  ├── feat/domain-and-database
  ├── feat/auth-jwt
- ├── feat/projects-experts
+ ├── feat/projects-call-agents
  ├── feat/availability
  ├── feat/shifts
  ├── feat/applications-business-rules
@@ -326,7 +359,7 @@ git tag v1.0.0
 ```text
 feat(applications): enforce availability coverage rule
 
-An expert may only apply when the entire shift falls inside a single
+A CallAgent may only apply when the entire shift falls inside a single
 availability window. Adjacent windows are merged on insert, so this
 check stays a simple range containment query instead of a gap-filling
 algorithm.
@@ -335,10 +368,10 @@ Refs: docs/01-erd-and-schema.md §6
 ```
 
 ```text
-fix(db): break multiple cascade paths on Experts
+fix(db): break multiple cascade paths on CallAgents
 
 SQL Server rejects two cascade paths into the same table. FKs coming
-from the Expert side are set to NO ACTION; the Employer → Project →
+from the CallAgent side are set to NO ACTION; the Supervisor → Project →
 Shift path keeps cascade.
 ```
 

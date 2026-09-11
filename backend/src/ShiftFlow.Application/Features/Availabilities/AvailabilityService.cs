@@ -10,14 +10,14 @@ using ShiftFlow.Domain.Exceptions;
 namespace ShiftFlow.Application.Features.Availabilities;
 
 /// <summary>
-/// Expert-facing availability use cases. Every method is scoped to
-/// <see cref="ICurrentUser.RequireExpertId"/>: another expert's window is
+/// CallAgent-facing availability use cases. Every method is scoped to
+/// <see cref="ICurrentUser.RequireCallAgentId"/>: another CallAgent's window is
 /// treated exactly like one that does not exist (<see cref="NotFoundException"/>),
-/// so ids cannot be probed (CLAUDE.md §7). There is no employer-facing read of
-/// an expert's availability in this phase — see the phase report.
+/// so ids cannot be probed (CLAUDE.md §7). There is no supervisor-facing read of
+/// a CallAgent's availability in this phase — see the phase report.
 /// </summary>
 /// <remarks>
-/// Create and update both run the whole of the expert's windows through
+/// Create and update both run the whole of the CallAgent's windows through
 /// <see cref="AvailabilityMerge"/> and then reconcile the stored rows to the
 /// normalized result, so the database never holds two windows that overlap or
 /// touch regardless of the order rows were inserted. A window whose bounds
@@ -46,28 +46,28 @@ public sealed class AvailabilityService
         AvailabilityRequest request,
         CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
         var requested = AvailabilityRequestValidator.ValidateAndNormalize(request);
 
-        var current = await LoadWindowsAsync(expertId, exceptId: null, cancellationToken);
+        var current = await LoadWindowsAsync(callAgentId, exceptId: null, cancellationToken);
         var merged = AvailabilityMerge.Merge(current.Append(requested));
 
-        await ReconcileAsync(expertId, merged, cancellationToken);
+        await ReconcileAsync(callAgentId, merged, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return await ReadHostingWindowAsync(expertId, requested, cancellationToken);
+        return await ReadHostingWindowAsync(callAgentId, requested, cancellationToken);
     }
 
     /// <summary>The caller's windows, earliest first.</summary>
     public async Task<IReadOnlyList<AvailabilityResponse>> ListAsync(CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
 
         return await _db.Availabilities
             .AsNoTracking()
-            .Where(a => a.ExpertId == expertId)
+            .Where(a => a.CallAgentId == callAgentId)
             .OrderBy(a => a.StartUtc)
-            .Select(a => new AvailabilityResponse(a.Id, a.ExpertId, a.StartUtc, a.EndUtc, a.CreatedAtUtc))
+            .Select(a => new AvailabilityResponse(a.Id, a.CallAgentId, a.StartUtc, a.EndUtc, a.CreatedAtUtc))
             .ToListAsync(cancellationToken);
     }
 
@@ -80,7 +80,7 @@ public sealed class AvailabilityService
 
     /// <summary>
     /// Moves or resizes a window, then re-merges. Blocked with a 409 when the
-    /// new shape would leave one of the expert's approved shifts without a
+    /// new shape would leave one of the CallAgent's approved shifts without a
     /// covering window — the same guard as <see cref="DeleteAsync"/>.
     /// </summary>
     public async Task<AvailabilityResponse> UpdateAsync(
@@ -88,58 +88,58 @@ public sealed class AvailabilityService
         AvailabilityRequest request,
         CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
         _ = await FindOwnedAsync(id, cancellationToken);
         var requested = AvailabilityRequestValidator.ValidateAndNormalize(request);
 
-        var others = await LoadWindowsAsync(expertId, exceptId: id, cancellationToken);
+        var others = await LoadWindowsAsync(callAgentId, exceptId: id, cancellationToken);
         var merged = AvailabilityMerge.Merge(others.Append(requested));
 
-        await GuardApprovedShiftsStayCoveredAsync(expertId, merged, cancellationToken);
+        await GuardApprovedShiftsStayCoveredAsync(callAgentId, merged, cancellationToken);
 
-        await ReconcileAsync(expertId, merged, cancellationToken);
+        await ReconcileAsync(callAgentId, merged, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
 
-        return await ReadHostingWindowAsync(expertId, requested, cancellationToken);
+        return await ReadHostingWindowAsync(callAgentId, requested, cancellationToken);
     }
 
     /// <summary>
     /// Removes a window. Blocked with a 409 when it is the window covering one
-    /// of the expert's approved shifts — deleting it would contradict work the
-    /// employer already approved (CLAUDE.md §5).
+    /// of the CallAgent's approved shifts — deleting it would contradict work the
+    /// supervisor already approved (CLAUDE.md §5).
     /// </summary>
     public async Task DeleteAsync(int id, CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
         var window = await FindOwnedAsync(id, cancellationToken);
 
-        var remaining = await LoadWindowsAsync(expertId, exceptId: id, cancellationToken);
-        await GuardApprovedShiftsStayCoveredAsync(expertId, remaining, cancellationToken);
+        var remaining = await LoadWindowsAsync(callAgentId, exceptId: id, cancellationToken);
+        await GuardApprovedShiftsStayCoveredAsync(callAgentId, remaining, cancellationToken);
 
         _db.Availabilities.Remove(window);
         await _db.SaveChangesAsync(cancellationToken);
     }
 
     /// <summary>
-    /// The expert's stored windows as <see cref="TimeRange"/> values, optionally
+    /// The CallAgent's stored windows as <see cref="TimeRange"/> values, optionally
     /// dropping one row by id (the row being updated or deleted).
     /// </summary>
     private async Task<List<TimeRange>> LoadWindowsAsync(
-        int expertId,
+        int callAgentId,
         int? exceptId,
         CancellationToken cancellationToken) =>
         await _db.Availabilities
             .AsNoTracking()
-            .Where(a => a.ExpertId == expertId && (exceptId == null || a.Id != exceptId))
+            .Where(a => a.CallAgentId == callAgentId && (exceptId == null || a.Id != exceptId))
             .Select(a => new TimeRange(a.StartUtc, a.EndUtc))
             .ToListAsync(cancellationToken);
 
     private async Task<Availability> FindOwnedAsync(int id, CancellationToken cancellationToken)
     {
-        var expertId = _currentUser.RequireExpertId();
+        var callAgentId = _currentUser.RequireCallAgentId();
 
         return await _db.Availabilities
-                   .FirstOrDefaultAsync(a => a.Id == id && a.ExpertId == expertId, cancellationToken)
+                   .FirstOrDefaultAsync(a => a.Id == id && a.CallAgentId == callAgentId, cancellationToken)
                ?? throw new NotFoundException("Availability window not found.");
     }
 
@@ -151,12 +151,12 @@ public sealed class AvailabilityService
     /// resulting row set does not depend on insertion order.
     /// </summary>
     private async Task ReconcileAsync(
-        int expertId,
+        int callAgentId,
         IReadOnlyList<TimeRange> merged,
         CancellationToken cancellationToken)
     {
         var rows = await _db.Availabilities
-            .Where(a => a.ExpertId == expertId)
+            .Where(a => a.CallAgentId == callAgentId)
             .ToListAsync(cancellationToken);
 
         var wanted = merged.ToList();
@@ -179,7 +179,7 @@ public sealed class AvailabilityService
         {
             _db.Availabilities.Add(new Availability
             {
-                ExpertId = expertId,
+                CallAgentId = callAgentId,
                 StartUtc = window.StartUtc,
                 EndUtc = window.EndUtc,
                 CreatedAtUtc = now,
@@ -188,13 +188,13 @@ public sealed class AvailabilityService
     }
 
     private async Task GuardApprovedShiftsStayCoveredAsync(
-        int expertId,
+        int callAgentId,
         IReadOnlyList<TimeRange> windows,
         CancellationToken cancellationToken)
     {
         var approvedShifts = await _db.ShiftApplications
             .AsNoTracking()
-            .Where(a => a.ExpertId == expertId && a.Status == ApplicationStatus.Approved)
+            .Where(a => a.CallAgentId == callAgentId && a.Status == ApplicationStatus.Approved)
             .Select(a => new TimeRange(a.Shift.StartUtc, a.Shift.EndUtc))
             .ToListAsync(cancellationToken);
 
@@ -207,13 +207,13 @@ public sealed class AvailabilityService
     }
 
     private async Task<AvailabilityResponse> ReadHostingWindowAsync(
-        int expertId,
+        int callAgentId,
         TimeRange requested,
         CancellationToken cancellationToken)
     {
         var window = await _db.Availabilities
             .AsNoTracking()
-            .Where(a => a.ExpertId == expertId
+            .Where(a => a.CallAgentId == callAgentId
                         && a.StartUtc <= requested.StartUtc
                         && a.EndUtc >= requested.EndUtc)
             .OrderBy(a => a.StartUtc)
@@ -223,5 +223,5 @@ public sealed class AvailabilityService
     }
 
     private static AvailabilityResponse ToResponse(Availability a) =>
-        new(a.Id, a.ExpertId, a.StartUtc, a.EndUtc, a.CreatedAtUtc);
+        new(a.Id, a.CallAgentId, a.StartUtc, a.EndUtc, a.CreatedAtUtc);
 }

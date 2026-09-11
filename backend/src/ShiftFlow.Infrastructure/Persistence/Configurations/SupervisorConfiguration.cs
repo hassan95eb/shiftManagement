@@ -4,22 +4,18 @@ using ShiftFlow.Domain.Entities;
 
 namespace ShiftFlow.Infrastructure.Persistence.Configurations;
 
-/// <summary>docs/01-erd-and-schema.md §3-3. Experts → Users: CASCADE (§4).</summary>
-public sealed class ExpertConfiguration : IEntityTypeConfiguration<Expert>
+/// <summary>docs/01-erd-and-schema.md §3-2. Supervisors → Users: CASCADE (§4).</summary>
+public sealed class SupervisorConfiguration : IEntityTypeConfiguration<Supervisor>
 {
-    public void Configure(EntityTypeBuilder<Expert> builder)
+    public void Configure(EntityTypeBuilder<Supervisor> builder)
     {
-        builder.ToTable("Experts");
+        builder.ToTable("Supervisors");
 
         builder.HasKey(e => e.Id);
 
-        builder.Property(e => e.FullName)
+        builder.Property(e => e.Name)
             .IsRequired()
             .HasMaxLength(128);
-
-        builder.Property(e => e.IsActive)
-            .IsRequired()
-            .HasDefaultValue(true);
 
         builder.Property(e => e.CreatedAtUtc)
             .IsRequired()
@@ -27,11 +23,11 @@ public sealed class ExpertConfiguration : IEntityTypeConfiguration<Expert>
 
         builder.HasIndex(e => e.UserId)
             .IsUnique()
-            .HasDatabaseName("UQ_Experts_UserId");
+            .HasDatabaseName("UQ_Supervisors_UserId");
 
         builder.HasOne(e => e.User)
-            .WithOne(u => u.Expert)
-            .HasForeignKey<Expert>(e => e.UserId)
+            .WithOne(u => u.Supervisor)
+            .HasForeignKey<Supervisor>(e => e.UserId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
     }

@@ -10,15 +10,15 @@ using ShiftFlow.Domain.Exceptions;
 namespace ShiftFlow.Application.Features.Shifts;
 
 /// <summary>
-/// Employer-facing shift use cases. Every method is scoped through the shift's
-/// project to <see cref="ICurrentUser.RequireEmployerId"/>: a shift on another
-/// employer's project is treated exactly like one that does not exist
+/// Supervisor-facing shift use cases. Every method is scoped through the shift's
+/// project to <see cref="ICurrentUser.RequireSupervisorId"/>: a shift on another
+/// supervisor's project is treated exactly like one that does not exist
 /// (<see cref="NotFoundException"/>), so ids cannot be probed (CLAUDE.md §7).
 /// </summary>
 /// <remarks>
-/// An employer may set a shift's schedule only at creation, and may correct it
+/// A supervisor may set a shift's schedule only at creation, and may correct it
 /// afterwards through <see cref="UpdateAsync"/> <i>only while the shift is still
-/// <see cref="ShiftStatus.Open"/> and no expert has applied to it</i>. Once an
+/// <see cref="ShiftStatus.Open"/> and no CallAgent has applied to it</i>. Once an
 /// application references the shift, its window is frozen — applicants were
 /// evaluated against that exact interval (apply rules 3 and 5, and the scoring
 /// math, all bind to <c>Shift.StartUtc</c>/<c>EndUtc</c>). Status is never set
@@ -43,11 +43,11 @@ public sealed class ShiftService
     /// <summary>Creates an <see cref="ShiftStatus.Open"/> shift on one of the caller's projects.</summary>
     public async Task<ShiftResponse> CreateAsync(CreateShiftRequest request, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
         var (projectId, startUtc, endUtc) = ShiftRequestValidator.ValidateAndNormalize(request);
 
         var projectExists = await _db.Projects
-            .AnyAsync(p => p.Id == projectId && p.EmployerId == employerId, cancellationToken);
+            .AnyAsync(p => p.Id == projectId && p.SupervisorId == supervisorId, cancellationToken);
         if (!projectExists)
         {
             throw new NotFoundException("Project not found.");
@@ -73,11 +73,11 @@ public sealed class ShiftService
         ShiftListFilter filter,
         CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
         var query = _db.Shifts
             .AsNoTracking()
-            .Where(s => s.Project.EmployerId == employerId);
+            .Where(s => s.Project.SupervisorId == supervisorId);
 
         if (filter.ProjectId is { } projectId)
         {
@@ -116,7 +116,7 @@ public sealed class ShiftService
 
     /// <summary>
     /// Corrects a shift's window. Refused with 409 when the shift is no longer
-    /// <see cref="ShiftStatus.Open"/> or an expert has already applied to it, and
+    /// <see cref="ShiftStatus.Open"/> or a CallAgent has already applied to it, and
     /// with 409 when <paramref name="request"/> carries a stale
     /// <c>RowVersion</c>.
     /// </summary>
@@ -165,14 +165,14 @@ public sealed class ShiftService
 
     /// <summary>
     /// Loads a shift by id whose project belongs to the caller. A miss — unknown
-    /// id or another employer's shift — is a <see cref="NotFoundException"/>, so
+    /// id or another supervisor's shift — is a <see cref="NotFoundException"/>, so
     /// the two are indistinguishable to the caller.
     /// </summary>
     private async Task<Shift> FindOwnedAsync(int id, bool tracked, CancellationToken cancellationToken)
     {
-        var employerId = _currentUser.RequireEmployerId();
+        var supervisorId = _currentUser.RequireSupervisorId();
 
-        var query = _db.Shifts.Where(s => s.Id == id && s.Project.EmployerId == employerId);
+        var query = _db.Shifts.Where(s => s.Id == id && s.Project.SupervisorId == supervisorId);
         if (!tracked)
         {
             query = query.AsNoTracking();

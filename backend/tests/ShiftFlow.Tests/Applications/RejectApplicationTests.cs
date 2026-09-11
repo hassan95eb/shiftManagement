@@ -13,7 +13,7 @@ namespace ShiftFlow.Tests.Applications;
 /// <summary>
 /// CLAUDE.md §5: reject affects only the one application. The shift stays Open
 /// and the other applications are left as they were. Ownership is enforced the
-/// same way as approve — another employer's application is a 404.
+/// same way as approve — another supervisor's application is a 404.
 /// </summary>
 public class RejectApplicationTests
 {
@@ -23,29 +23,29 @@ public class RejectApplicationTests
 
     private static DateTime On(int day) => new(2026, 6, day, 12, 0, 0, DateTimeKind.Utc);
 
-    private static ApprovalService ServiceFor(SqliteTestContext ctx, Employer employer) =>
-        new(ctx.Db, StubCurrentUser.Employer(employer.UserId, employer.Id), new TestClock(Now));
+    private static ApprovalService ServiceFor(SqliteTestContext ctx, Supervisor supervisor) =>
+        new(ctx.Db, StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id), new TestClock(Now));
 
     [Fact]
     public async Task Rejecting_one_application_leaves_the_shift_open_and_the_others_untouched()
     {
         using var ctx = new SqliteTestContext();
-        var employer = ctx.Db.AddEmployer("Acme");
-        var project = ctx.Db.AddProject(employer.Id, "Support");
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
         var shift = ctx.Db.AddShift(project.Id, At(8), At(16));
 
-        var jane = ctx.Db.AddExpert("Jane Doe");
-        var mike = ctx.Db.AddExpert("Mike Roe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
         ctx.Db.Assign(jane.Id, project.Id);
         ctx.Db.Assign(mike.Id, project.Id);
 
         var janeApp = ctx.Db.AddApplication(shift.Id, jane.Id, ApplicationStatus.Pending, On(1));
         var mikeApp = ctx.Db.AddApplication(shift.Id, mike.Id, ApplicationStatus.Pending, On(2));
 
-        var result = await ServiceFor(ctx, employer).RejectAsync(janeApp.Id, CancellationToken.None);
+        var result = await ServiceFor(ctx, supervisor).RejectAsync(janeApp.Id, CancellationToken.None);
 
         Assert.Equal("Rejected", result.Status);
-        Assert.Equal(employer.UserId, result.DecidedByUserId);
+        Assert.Equal(supervisor.UserId, result.DecidedByUserId);
         Assert.Equal(Now, result.DecidedAtUtc);
 
         var db = ctx.NewContext();
@@ -58,13 +58,13 @@ public class RejectApplicationTests
     }
 
     [Fact]
-    public async Task Rejecting_an_application_on_another_employers_project_is_NotFound()
+    public async Task Rejecting_an_application_on_another_supervisors_project_is_NotFound()
     {
         using var ctx = new SqliteTestContext();
-        var acme = ctx.Db.AddEmployer("Acme");
-        var globex = ctx.Db.AddEmployer("Globex");
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
         var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
-        var jane = ctx.Db.AddExpert("Jane Doe");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
         ctx.Db.Assign(jane.Id, globexProject.Id);
         var shift = ctx.Db.AddShift(globexProject.Id, At(8), At(16));
         var app = ctx.Db.AddApplication(shift.Id, jane.Id, ApplicationStatus.Pending);
