@@ -119,6 +119,50 @@ public class AttendanceSessionLifecycleTests
     }
 
     [Fact]
+    public async Task Heartbeat_opens_the_current_shift_without_touching_an_old_open_session()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        var now = new DateTime(2026, 7, 2, 10, 0, 0, DateTimeKind.Utc);
+        var oldShift = ctx.Db.AddShift(
+            project.Id, now.AddDays(-1).AddHours(-1), now.AddDays(-1).AddHours(1),
+            ShiftStatus.Assigned, agent.Id);
+        var currentShift = ctx.Db.AddShift(
+            project.Id, now.AddHours(-1), now.AddHours(1), ShiftStatus.Assigned, agent.Id);
+        var oldLastSeen = now.AddDays(-1);
+        ctx.Db.AddAttendanceSession(
+            agent.Id, oldShift.Id, oldShift.StartUtc, oldLastSeen);
+        var service = ServiceFor(
+            ctx,
+            StubCurrentUser.CallAgent(agent.UserId, agent.Id),
+            new TestClock(now));
+
+        await service.HeartbeatAsync(CancellationToken.None);
+
+        var sessions = await ctx.NewContext().AttendanceSessions.OrderBy(s => s.ShiftId).ToListAsync();
+        Assert.Equal(2, sessions.Count);
+        Assert.Equal(oldLastSeen, sessions.Single(s => s.ShiftId == oldShift.Id).LastSeenUtc);
+        Assert.Equal(now, sessions.Single(s => s.ShiftId == currentShift.Id).LastSeenUtc);
+    }
+
+    [Fact]
+    public async Task Heartbeat_without_a_current_committed_shift_writes_nothing()
+    {
+        using var ctx = new SqliteTestContext();
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        var service = ServiceFor(
+            ctx,
+            StubCurrentUser.CallAgent(agent.UserId, agent.Id),
+            new TestClock(new DateTime(2026, 7, 1, 10, 0, 0, DateTimeKind.Utc)));
+
+        await service.HeartbeatAsync(CancellationToken.None);
+
+        Assert.False(await ctx.NewContext().AttendanceSessions.AnyAsync());
+    }
+
+    [Fact]
     public async Task Login_outside_a_committed_shift_does_not_open_a_session()
     {
         using var ctx = new SqliteTestContext();

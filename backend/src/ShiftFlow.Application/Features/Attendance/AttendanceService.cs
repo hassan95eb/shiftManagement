@@ -33,7 +33,33 @@ public sealed class AttendanceService
     public async Task OpenForLoginAsync(int callAgentId, CancellationToken cancellationToken)
     {
         var now = _clock.UtcNow;
-        var shift = await _db.Shifts
+        var shift = await FindCurrentCommittedShiftAsync(callAgentId, now, cancellationToken);
+        if (shift is null)
+        {
+            return;
+        }
+
+        await OpenOrRefreshSessionAsync(callAgentId, shift.Id, now, cancellationToken);
+    }
+
+    public async Task HeartbeatAsync(CancellationToken cancellationToken)
+    {
+        var callAgentId = _currentUser.RequireCallAgentId();
+        var now = _clock.UtcNow;
+        var shift = await FindCurrentCommittedShiftAsync(callAgentId, now, cancellationToken);
+        if (shift is null)
+        {
+            return;
+        }
+
+        await OpenOrRefreshSessionAsync(callAgentId, shift.Id, now, cancellationToken);
+    }
+
+    private async Task<Shift?> FindCurrentCommittedShiftAsync(
+        int callAgentId,
+        DateTime now,
+        CancellationToken cancellationToken) =>
+        await _db.Shifts
             .Where(s => s.StartUtc <= now && s.EndUtc > now)
             .Where(s => s.AssignedCallAgentId == callAgentId
                         || s.ShiftApplications.Any(a =>
@@ -41,14 +67,15 @@ public sealed class AttendanceService
             .OrderBy(s => s.StartUtc)
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (shift is null)
-        {
-            return;
-        }
-
+    private async Task OpenOrRefreshSessionAsync(
+        int callAgentId,
+        int shiftId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
         var session = await _db.AttendanceSessions
             .Where(s => s.CallAgentId == callAgentId
-                        && s.ShiftId == shift.Id
+                        && s.ShiftId == shiftId
                         && s.EndedAtUtc == null)
             .OrderByDescending(s => s.StartedAtUtc)
             .FirstOrDefaultAsync(cancellationToken);
@@ -58,7 +85,7 @@ public sealed class AttendanceService
             _db.AttendanceSessions.Add(new AttendanceSession
             {
                 CallAgentId = callAgentId,
-                ShiftId = shift.Id,
+                ShiftId = shiftId,
                 StartedAtUtc = now,
                 LastSeenUtc = now,
             });
@@ -68,23 +95,6 @@ public sealed class AttendanceService
             session.LastSeenUtc = now;
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
-    }
-
-    public async Task HeartbeatAsync(CancellationToken cancellationToken)
-    {
-        var callAgentId = _currentUser.RequireCallAgentId();
-        var session = await _db.AttendanceSessions
-            .Where(s => s.CallAgentId == callAgentId && s.EndedAtUtc == null)
-            .OrderByDescending(s => s.StartedAtUtc)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        if (session is null)
-        {
-            return;
-        }
-
-        session.LastSeenUtc = _clock.UtcNow;
         await _db.SaveChangesAsync(cancellationToken);
     }
 
