@@ -23,7 +23,13 @@ public sealed class AccessScope : IAccessScope
         }
 
         var supervisorId = _currentUser.RequireSupervisorId();
-        var equalsOwnSupervisor = Expression.Equal(supervisorIdSelector.Body, Expression.Constant(supervisorId));
+
+        // A bare Expression.Constant renders as a SQL literal, so SQL Server
+        // would compile and cache a separate plan per supervisor id. Routing
+        // the value through a closure — same trick EF.Parameter() codifies —
+        // makes it a query parameter instead.
+        Expression<Func<int>> boxedSupervisorId = () => supervisorId;
+        var equalsOwnSupervisor = Expression.Equal(supervisorIdSelector.Body, boxedSupervisorId.Body);
         var predicate = Expression.Lambda<Func<T, bool>>(equalsOwnSupervisor, supervisorIdSelector.Parameters);
 
         return query.Where(predicate);
