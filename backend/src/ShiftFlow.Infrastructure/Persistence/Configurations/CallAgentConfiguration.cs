@@ -21,6 +21,10 @@ public sealed class CallAgentConfiguration : IEntityTypeConfiguration<CallAgent>
             .IsRequired()
             .HasDefaultValue(true);
 
+        builder.Property(e => e.AnnualLeaveDays)
+            .IsRequired()
+            .HasDefaultValue(26);
+
         builder.Property(e => e.CreatedAtUtc)
             .IsRequired()
             .HasColumnType("datetime2(0)");

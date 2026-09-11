@@ -42,4 +42,6 @@ public class Shift
     public ICollection<Recommendation> Recommendations { get; } = new List<Recommendation>();
 
     public ICollection<AttendanceSession> AttendanceSessions { get; } = new List<AttendanceSession>();
+
+    public ICollection<AgentRequest> AgentRequests { get; } = new List<AgentRequest>();
 }

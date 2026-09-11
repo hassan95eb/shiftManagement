@@ -16,6 +16,8 @@ public class CallAgent
 
     public bool IsActive { get; set; }
 
+    public int AnnualLeaveDays { get; set; }
+
     public DateTime CreatedAtUtc { get; set; }
 
     // Navigation
@@ -32,6 +34,8 @@ public class CallAgent
     public ICollection<Recommendation> Recommendations { get; } = new List<Recommendation>();
 
     public ICollection<AttendanceSession> AttendanceSessions { get; } = new List<AttendanceSession>();
+
+    public ICollection<AgentRequest> AgentRequests { get; } = new List<AgentRequest>();
 
     // Shifts.AssignedCallAgentId. NO ACTION on delete (docs/01 §4).
     public ICollection<Shift> AssignedShifts { get; } = new List<Shift>();
