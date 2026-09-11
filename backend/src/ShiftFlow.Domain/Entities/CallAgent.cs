@@ -30,4 +30,7 @@ public class CallAgent
     public ICollection<ShiftApplication> ShiftApplications { get; } = new List<ShiftApplication>();
 
     public ICollection<Recommendation> Recommendations { get; } = new List<Recommendation>();
+
+    // Shifts.AssignedCallAgentId. NO ACTION on delete (docs/01 §4).
+    public ICollection<Shift> AssignedShifts { get; } = new List<Shift>();
 }
