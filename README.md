@@ -520,6 +520,26 @@ Kept as a running log (docs/02 §11).
   the gated migrate + seed with no password logged, tests for the
   previously-uncovered decision branches (already-decided, cross-project
   overlap, unknown reject id), and this README.
+- **Claude Code** — Prompt 11 (scoring): `python/scoring.py` — standard-library
+  only, mirroring the §5 formula (including the sum-of-one-decimal-parts rule
+  that makes the seeded `nate` row `71.50`, not `71.46`) with all arithmetic in
+  `Decimal`/`ROUND_HALF_UP`, and the four-level tie-break as a sort key;
+  `python/config.py` resolving the `SCORING__*` and `MSSQL_*` variables into a
+  frozen dataclass that falls back to the §5 defaults; the reserved scoring
+  lines activated in `.env.example`; `python/README.md`; a load-bearing test
+  that reproduces the seeded `ada` / `nate` / `kite` rows byte-for-byte plus
+  rating-default, monthly-cap, availability and rounding-convention coverage;
+  and a README note that the §5 formula still has three unenforced copies.
+- **Claude Code** — Prompt 12 (recommender): `python/db.py` — a `pymssql`
+  connection from the resolved config, the per-shift reads (pending applicants,
+  covering window, previous-month rating, approved-shift spans), and one
+  idempotent `MERGE` on `(ShiftId, ExpertId)` that rewrites only changed rows
+  and drops rows for pairs not scored in the run; `python/recommendation.py`,
+  the entry point that ranks each Open shift's own applicants and skips anyone
+  who would now fail an apply rule; `docker/recommender.Dockerfile` and the
+  profile-gated one-shot `recommender` service in `docker-compose.yml`, gated on
+  the db healthcheck. Verified against the seed: `76.10` / `71.50` / `70.90`
+  with identical `Reason` strings, second run a no-op.
 - **Claude Code** — Prompt 13 (docker api): `docker/api.Dockerfile` (multi-stage
   SDK build → aspnet:10.0 runtime image), the `api` service in
   `docker-compose.yml` depending on the db healthcheck, both secrets sourced
