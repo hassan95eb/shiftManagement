@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Features.Projects;
 using ShiftFlow.Domain.Exceptions;
 using ShiftFlow.Tests.Support;
@@ -15,7 +16,7 @@ namespace ShiftFlow.Tests.Projects;
 public class DeleteProjectTests
 {
     private static ProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock());
+        new(ctx.Db, new AccessScope(StubCurrentUser.Supervisor(userId, supervisorId)), new TestClock());
 
     [Fact]
     public async Task An_empty_project_is_deleted()

@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.CallAgents;
 using ShiftFlow.Domain.Enums;
@@ -13,8 +14,11 @@ public class UnassignCallAgentFromProjectTests
 {
     private static readonly DateTime Now = new(2026, 6, 1, 9, 0, 0, DateTimeKind.Utc);
 
-    private static CallAgentProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock(Now));
+    private static CallAgentProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId)
+    {
+        var currentUser = StubCurrentUser.Supervisor(userId, supervisorId);
+        return new(ctx.Db, currentUser, new AccessScope(currentUser), new TestClock(Now));
+    }
 
     [Fact]
     public async Task Unassigning_removes_the_link()

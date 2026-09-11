@@ -1,6 +1,7 @@
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.Projects;
 using ShiftFlow.Application.Features.Projects.Dtos;
@@ -9,14 +10,18 @@ using ShiftFlow.Tests.Support;
 namespace ShiftFlow.Tests.Projects;
 
 /// <summary>
-/// CLAUDE.md §7: a supervisor may only ever touch their own projects. A correct
-/// role pointed at another supervisor's project — or at an id that does not exist
-/// — must fail, and must fail the same way, so ids cannot be probed.
+/// CLAUDE.md §7: a supervisor may only ever touch their own projects, and a
+/// correct role pointed at another supervisor's project — or at an id that does
+/// not exist — must fail the same way, so ids cannot be probed. A Manager sees
+/// every project, so the 404-not-403 rule never triggers for one.
 /// </summary>
 public class ProjectAuthorizationTests
 {
     private static ProjectService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock());
+        new(ctx.Db, new AccessScope(StubCurrentUser.Supervisor(userId, supervisorId)), new TestClock());
+
+    private static ProjectService ServiceForManager(SqliteTestContext ctx, int managerUserId) =>
+        new(ctx.Db, new AccessScope(StubCurrentUser.Manager(managerUserId)), new TestClock());
 
     private static readonly UpdateProjectRequest AnyUpdate = new() { Name = "Renamed", IsActive = false };
 
@@ -86,5 +91,31 @@ public class ProjectAuthorizationTests
         var mine = await ServiceFor(ctx, acme.UserId, acme.Id).ListAsync(CancellationToken.None);
 
         Assert.Equal(new[] { "Acme A", "Acme B" }, mine.Select(p => p.Name).ToArray());
+    }
+
+    [Fact]
+    public async Task A_manager_can_read_any_supervisors_project()
+    {
+        using var ctx = new SqliteTestContext();
+        var globex = ctx.Db.AddSupervisor("Globex");
+        var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
+
+        var read = await ServiceForManager(ctx, managerUserId: 1).GetAsync(globexProject.Id, CancellationToken.None);
+
+        Assert.Equal(globexProject.Id, read.Id);
+    }
+
+    [Fact]
+    public async Task A_manager_lists_every_supervisors_projects()
+    {
+        using var ctx = new SqliteTestContext();
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
+        ctx.Db.AddProject(acme.Id, "Acme A");
+        ctx.Db.AddProject(globex.Id, "Globex A");
+
+        var all = await ServiceForManager(ctx, managerUserId: 1).ListAsync(CancellationToken.None);
+
+        Assert.Equal(new[] { "Acme A", "Globex A" }, all.Select(p => p.Name).ToArray());
     }
 }

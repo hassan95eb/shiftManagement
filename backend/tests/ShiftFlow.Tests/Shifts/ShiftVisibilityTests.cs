@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.Shifts;
 using ShiftFlow.Application.Features.Shifts.Dtos;
@@ -14,14 +15,18 @@ namespace ShiftFlow.Tests.Shifts;
 /// CLAUDE.md §7: a shift is visible only through a project the caller owns
 /// (supervisor) or is assigned to (CallAgent). A cross-supervisor shift, and a shift on
 /// a project a CallAgent is not assigned to, are 404 / absent — never 403 — so
-/// neither the id nor the project membership can be probed.
+/// neither the id nor the project membership can be probed. A Manager sees
+/// every shift.
 /// </summary>
 public class ShiftVisibilityTests
 {
     private static DateTime At(int day, int hour) => new(2026, 7, day, hour, 0, 0, DateTimeKind.Utc);
 
     private static ShiftService SupervisorService(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new TestClock());
+        new(ctx.Db, new AccessScope(StubCurrentUser.Supervisor(userId, supervisorId)), new TestClock());
+
+    private static ShiftService ManagerService(SqliteTestContext ctx, int managerUserId) =>
+        new(ctx.Db, new AccessScope(StubCurrentUser.Manager(managerUserId)), new TestClock());
 
     private static OpenShiftService CallAgentService(SqliteTestContext ctx, int userId, int callAgentId) =>
         new(ctx.Db, StubCurrentUser.CallAgent(userId, callAgentId));
@@ -158,5 +163,26 @@ public class ShiftVisibilityTests
             CallAgentService(ctx, jane.UserId, jane.Id).GetAsync(shift.Id, CancellationToken.None));
         await Assert.ThrowsAsync<NotFoundException>(() =>
             CallAgentService(ctx, jane.UserId, jane.Id).GetAsync(9999, CancellationToken.None));
+    }
+
+    // ---- Manager side --------------------------------------------------------
+
+    [Fact]
+    public async Task A_manager_lists_shifts_across_every_supervisor()
+    {
+        using var ctx = new SqliteTestContext();
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var globex = ctx.Db.AddSupervisor("Globex");
+        var acmeProject = ctx.Db.AddProject(acme.Id, "Acme Support");
+        var globexProject = ctx.Db.AddProject(globex.Id, "Globex Support");
+        ctx.Db.AddShift(acmeProject.Id, At(1, 8), At(1, 16));
+        var globexShift = ctx.Db.AddShift(globexProject.Id, At(2, 8), At(2, 16));
+
+        var all = await ManagerService(ctx, managerUserId: 1).ListAsync(new ShiftListFilter(), CancellationToken.None);
+
+        Assert.Equal(2, all.Count);
+
+        var read = await ManagerService(ctx, managerUserId: 1).GetAsync(globexShift.Id, CancellationToken.None);
+        Assert.Equal(globexShift.Id, read.Id);
     }
 }

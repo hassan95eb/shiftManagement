@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Features.Applications;
 using ShiftFlow.Domain.Enums;
 using ShiftFlow.Domain.Exceptions;
@@ -22,8 +23,11 @@ public class ApplyForShift_DuplicateTests
 
     private static DateTime At(int hour) => new(2026, 7, 1, hour, 0, 0, DateTimeKind.Utc);
 
-    private static ApplicationService ServiceFor(SqliteTestContext ctx, int userId, int callAgentId) =>
-        new(ctx.Db, StubCurrentUser.CallAgent(userId, callAgentId), new TestClock(Now));
+    private static ApplicationService ServiceFor(SqliteTestContext ctx, int userId, int callAgentId)
+    {
+        var currentUser = StubCurrentUser.CallAgent(userId, callAgentId);
+        return new(ctx.Db, currentUser, new AccessScope(currentUser), new TestClock(Now));
+    }
 
     [Fact]
     public async Task A_first_application_succeeds()

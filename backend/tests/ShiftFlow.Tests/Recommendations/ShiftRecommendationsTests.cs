@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.Recommendations;
 using ShiftFlow.Domain.Enums;
@@ -24,7 +25,7 @@ public class ShiftRecommendationsTests
     private static DateTime AppliedOn(int day) => new(2026, 6, day, 12, 0, 0, DateTimeKind.Utc);
 
     private static RecommendationService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId));
+        new(ctx.Db, new AccessScope(StubCurrentUser.Supervisor(userId, supervisorId)));
 
     [Fact]
     public async Task Ranking_is_score_desc_then_fewer_approved_hours_then_earlier_application()
