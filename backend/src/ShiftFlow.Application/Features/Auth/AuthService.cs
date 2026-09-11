@@ -1,7 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
-using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Application.Features.Auth.Dtos;
 
 namespace ShiftFlow.Application.Features.Auth;
@@ -16,13 +15,13 @@ public sealed class AuthService
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _tokenService;
-    private readonly AttendanceService _attendance;
+    private readonly IAttendanceRecorder _attendance;
 
     public AuthService(
         IAppDbContext db,
         IPasswordHasher passwordHasher,
         IJwtTokenService tokenService,
-        AttendanceService attendance)
+        IAttendanceRecorder attendance)
     {
         _db = db;
         _passwordHasher = passwordHasher;
@@ -47,12 +46,21 @@ public sealed class AuthService
         var supervisorId = user.Supervisor?.Id;
         var callAgentId = user.CallAgent?.Id;
 
+        var token = _tokenService.CreateAccessToken(user, supervisorId, callAgentId);
+
         if (callAgentId is not null)
         {
-            await _attendance.OpenForLoginAsync(callAgentId.Value, cancellationToken);
+            try
+            {
+                await _attendance.OpenForLoginAsync(callAgentId.Value, cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                // Presence is best-effort: a missed login record costs at most
+                // one heartbeat interval, while rejecting valid credentials
+                // here could cost the CallAgent the whole shift.
+            }
         }
-
-        var token = _tokenService.CreateAccessToken(user, supervisorId, callAgentId);
 
         return new LoginResponse(
             token.Token,

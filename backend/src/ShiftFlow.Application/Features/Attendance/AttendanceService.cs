@@ -7,7 +7,7 @@ using ShiftFlow.Domain.Enums;
 
 namespace ShiftFlow.Application.Features.Attendance;
 
-public sealed class AttendanceService
+public sealed class AttendanceService : IAttendanceRecorder
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;

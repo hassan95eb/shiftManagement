@@ -18,6 +18,12 @@ public class AttendanceSessionLifecycleTests
             new("token", new DateTime(2026, 7, 1, 11, 0, 0, DateTimeKind.Utc));
     }
 
+    private sealed class ThrowingAttendanceRecorder : IAttendanceRecorder
+    {
+        public Task OpenForLoginAsync(int callAgentId, CancellationToken cancellationToken) =>
+            throw new DbUpdateException("Transient attendance write failure.");
+    }
+
     private static AttendanceService ServiceFor(
         SqliteTestContext ctx,
         StubCurrentUser currentUser,
@@ -74,6 +80,27 @@ public class AttendanceSessionLifecycleTests
         var stored = await ctx.NewContext().AttendanceSessions.SingleAsync();
         Assert.Equal(shift.Id, stored.ShiftId);
         Assert.Equal(now, stored.StartedAtUtc);
+    }
+
+    [Fact]
+    public async Task Attendance_write_failure_does_not_fail_a_valid_login()
+    {
+        using var ctx = new SqliteTestContext();
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        agent.User.PasswordHash = FakePasswordHasher.Prefix + "secret";
+        ctx.Db.SaveChanges();
+        var auth = new AuthService(
+            ctx.Db,
+            new FakePasswordHasher(),
+            new TokenService(),
+            new ThrowingAttendanceRecorder());
+
+        var result = await auth.LoginAsync(
+            new LoginRequest { Username = agent.User.Username, Password = "secret" },
+            CancellationToken.None);
+
+        Assert.Equal("token", result.AccessToken);
+        Assert.Equal(agent.Id, result.CallAgentId);
     }
 
     [Fact]

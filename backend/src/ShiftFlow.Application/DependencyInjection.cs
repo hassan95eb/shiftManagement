@@ -23,6 +23,7 @@ public static class DependencyInjection
 
         services.AddScoped<AuthService>();
         services.AddScoped<AttendanceService>();
+        services.AddScoped<IAttendanceRecorder>(sp => sp.GetRequiredService<AttendanceService>());
         services.AddScoped<ProjectService>();
         services.AddScoped<CallAgentService>();
         services.AddScoped<CallAgentProjectService>();
