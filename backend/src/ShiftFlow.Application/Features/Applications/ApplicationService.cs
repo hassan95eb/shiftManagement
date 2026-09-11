@@ -111,17 +111,12 @@ public sealed class ApplicationService
                 "Your availability does not cover the whole of this shift.");
         }
 
-        // Rule 5 — no overlap with an already-approved shift. Half-open
-        // comparison (docs/01 §6), so back-to-back shifts such as 10–14 and
-        // 14–18 do not conflict.
-        var overlapsApproved = await _db.ShiftApplications
-            .AsNoTracking()
-            .AnyAsync(
-                a => a.CallAgentId == callAgentId
-                     && a.Status == ApplicationStatus.Approved
-                     && a.Shift.StartUtc < shift.EndUtc
-                     && a.Shift.EndUtc > shift.StartUtc,
-                cancellationToken);
+        // Rule 5 — no overlap with an already-approved shift or a directly
+        // Assigned one (docs/04-v2-prompts.md V3). Half-open comparison
+        // (docs/01 §6), so back-to-back shifts such as 10–14 and 14–18 do not
+        // conflict.
+        var overlapsApproved = await ShiftOverlapPolicy.HasOverlapAsync(
+            _db, callAgentId, shiftId, shift.StartUtc, shift.EndUtc, cancellationToken);
         if (overlapsApproved)
         {
             throw new BusinessRuleViolationException(

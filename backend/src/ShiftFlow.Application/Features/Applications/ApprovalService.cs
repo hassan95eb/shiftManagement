@@ -85,15 +85,12 @@ public sealed class ApprovalService
         }
 
         // Re-check apply rule 5 against the current state, not the state at apply
-        // time. Half-open comparison (docs/01-erd-and-schema.md §6), so a shift
-        // that merely touches an approved one does not clash.
-        var overlapsApproved = await _db.ShiftApplications
-            .AnyAsync(
-                a => a.CallAgentId == application.CallAgentId
-                     && a.Status == ApplicationStatus.Approved
-                     && a.Shift.StartUtc < shift.EndUtc
-                     && a.Shift.EndUtc > shift.StartUtc,
-                cancellationToken);
+        // time — now also against a directly Assigned shift, not just an
+        // approved application (docs/04-v2-prompts.md V3). Half-open comparison
+        // (docs/01-erd-and-schema.md §6), so a shift that merely touches an
+        // approved one does not clash.
+        var overlapsApproved = await ShiftOverlapPolicy.HasOverlapAsync(
+            _db, application.CallAgentId, shift.Id, shift.StartUtc, shift.EndUtc, cancellationToken);
         if (overlapsApproved)
         {
             throw new BusinessRuleViolationException(

@@ -495,3 +495,39 @@ BEGIN
     VALUES (N'20260911184111_AddManagerRole', N'10.0.11');
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911203653_AddShiftAssignment'
+)
+BEGIN
+    ALTER TABLE [Shifts] DROP CONSTRAINT [CK_Shifts_Status];
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911203653_AddShiftAssignment'
+)
+BEGIN
+    ALTER TABLE [Shifts] ADD [AssignedCallAgentId] int NULL;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911203653_AddShiftAssignment'
+)
+BEGIN
+    EXEC(N'ALTER TABLE [Shifts] ADD CONSTRAINT [CK_Shifts_Status] CHECK ([Status] IN (''Open'', ''Assigned'', ''Released'', ''Closed''))');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911203653_AddShiftAssignment'
+)
+BEGIN
+    ALTER TABLE [Shifts] ADD CONSTRAINT [FK_Shifts_CallAgents_AssignedCallAgentId] FOREIGN KEY ([AssignedCallAgentId]) REFERENCES [CallAgents] ([Id]);
+END;
+GO

@@ -18,8 +18,13 @@ public class Shift
 
     public DateTime EndUtc { get; set; }
 
-    // Default 'Open'. CHECK (Status IN ('Open','Closed')).
+    // Default 'Open'. CHECK (Status IN ('Open','Assigned','Released','Closed')).
     public ShiftStatus Status { get; set; }
+
+    // FK -> CallAgents, nullable, NO ACTION. Set by the assignment endpoint (V3),
+    // both for a direct fill and for a Cover approval (V6) — never through
+    // ShiftApplications (docs/01 §3-7).
+    public int? AssignedCallAgentId { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
 
@@ -29,6 +34,8 @@ public class Shift
 
     // Navigation
     public Project Project { get; set; } = null!;
+
+    public CallAgent? AssignedCallAgent { get; set; }
 
     public ICollection<ShiftApplication> ShiftApplications { get; } = new List<ShiftApplication>();
 

@@ -79,7 +79,16 @@ public static class TestData
         int projectId,
         DateTime startUtc,
         DateTime endUtc,
-        ShiftStatus status)
+        ShiftStatus status) =>
+        db.AddShift(projectId, startUtc, endUtc, status, assignedCallAgentId: null);
+
+    public static Shift AddShift(
+        this AppDbContext db,
+        int projectId,
+        DateTime startUtc,
+        DateTime endUtc,
+        ShiftStatus status,
+        int? assignedCallAgentId)
     {
         var shift = new Shift
         {
@@ -87,6 +96,7 @@ public static class TestData
             StartUtc = startUtc,
             EndUtc = endUtc,
             Status = status,
+            AssignedCallAgentId = assignedCallAgentId,
             CreatedAtUtc = Seeded,
         };
         db.Shifts.Add(shift);

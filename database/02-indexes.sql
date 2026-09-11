@@ -295,3 +295,22 @@ BEGIN
     VALUES (N'20260911151445_RenameEmployerSupervisorExpertCallAgent', N'10.0.11');
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911203653_AddShiftAssignment'
+)
+BEGIN
+    EXEC(N'CREATE INDEX [IX_Shifts_AssignedCallAgentId] ON [Shifts] ([AssignedCallAgentId]) WHERE [AssignedCallAgentId] IS NOT NULL');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911203653_AddShiftAssignment'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260911203653_AddShiftAssignment', N'10.0.11');
+END;
+GO

@@ -13,7 +13,9 @@ public sealed class ShiftConfiguration : IEntityTypeConfiguration<Shift>
         builder.ToTable("Shifts", t =>
         {
             t.HasCheckConstraint("CK_Shifts_Range", "[EndUtc] > [StartUtc]");
-            t.HasCheckConstraint("CK_Shifts_Status", "[Status] IN ('Open', 'Closed')");
+            t.HasCheckConstraint(
+                "CK_Shifts_Status",
+                "[Status] IN ('Open', 'Assigned', 'Released', 'Closed')");
         });
 
         builder.HasKey(s => s.Id);
@@ -45,10 +47,20 @@ public sealed class ShiftConfiguration : IEntityTypeConfiguration<Shift>
         builder.HasIndex(s => new { s.ProjectId, s.Status })
             .HasDatabaseName("IX_Shifts_ProjectId_Status");
 
+        builder.HasIndex(s => s.AssignedCallAgentId)
+            .HasDatabaseName("IX_Shifts_AssignedCallAgentId")
+            .HasFilter("[AssignedCallAgentId] IS NOT NULL");
+
         builder.HasOne(s => s.Project)
             .WithMany(p => p.Shifts)
             .HasForeignKey(s => s.ProjectId)
             .IsRequired()
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(s => s.AssignedCallAgent)
+            .WithMany(c => c.AssignedShifts)
+            .HasForeignKey(s => s.AssignedCallAgentId)
+            .IsRequired(false)
+            .OnDelete(DeleteBehavior.NoAction);
     }
 }

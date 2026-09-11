@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddScoped<CallAgentProjectService>();
         services.AddScoped<AvailabilityService>();
         services.AddScoped<ShiftService>();
+        services.AddScoped<ShiftAssignmentService>();
         services.AddScoped<OpenShiftService>();
         services.AddScoped<ApplicationService>();
         services.AddScoped<ApprovalService>();
