@@ -44,7 +44,10 @@ public sealed class AgentRequestService
         var input = AgentRequestValidator.ValidateAndNormalize(request);
         var shift = await FindCommittedShiftAsync(callAgentId, input.ShiftId, cancellationToken);
 
-        ValidateWindow(input.Type, input.StartUtc, input.EndUtc, shift, _clock.UtcNow);
+        if (WindowFailureReason(input.Type, input.StartUtc, input.EndUtc, shift, _clock.UtcNow) is { } failure)
+        {
+            throw new ValidationException(failure);
+        }
 
         var entity = new AgentRequest
         {
@@ -103,7 +106,11 @@ public sealed class AgentRequestService
         var request = await FindForSupervisorAsync(id, cancellationToken);
         EnsurePending(request);
         EnsureStillCommitted(request);
-        ValidateWindow(request.RequestType, request.StartUtc, request.EndUtc, request.Shift, _clock.UtcNow);
+        if (WindowFailureReason(
+                request.RequestType, request.StartUtc, request.EndUtc, request.Shift, _clock.UtcNow) is { } failure)
+        {
+            throw new BusinessRuleViolationException(failure);
+        }
 
         if (request.RequestType == AgentRequestType.Leave)
         {
@@ -207,7 +214,7 @@ public sealed class AgentRequestService
         }
     }
 
-    private static void ValidateWindow(
+    private static string? WindowFailureReason(
         AgentRequestType type,
         DateTime startUtc,
         DateTime endUtc,
@@ -216,19 +223,21 @@ public sealed class AgentRequestService
     {
         if (startUtc < shift.StartUtc || endUtc > shift.EndUtc)
         {
-            throw new ValidationException("The request interval must be inside the shift window.");
+            return "The request interval must be inside the shift window.";
         }
 
         if (type == AgentRequestType.Leave
             && (startUtc != shift.StartUtc || endUtc != shift.EndUtc))
         {
-            throw new ValidationException("Leave must cover the whole committed shift.");
+            return "Leave must cover the whole committed shift.";
         }
 
         if (type == AgentRequestType.Downtime && nowUtc < shift.StartUtc)
         {
-            throw new ValidationException("Downtime can only be requested for a shift in progress or ended.");
+            return "Downtime can only be requested for a shift in progress or ended.";
         }
+
+        return null;
     }
 
     private async Task<int> RemainingLeaveDaysAsync(int callAgentId, CancellationToken cancellationToken)

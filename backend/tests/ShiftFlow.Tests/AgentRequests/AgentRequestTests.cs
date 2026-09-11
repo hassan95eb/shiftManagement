@@ -288,4 +288,22 @@ public class AgentRequestTests
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             Service(ctx, invalidDecider).ApproveAsync(request.Id, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Invalid_window_discovered_at_approval_is_a_business_conflict()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        var shift = ctx.Db.AddShift(
+            project.Id, Now.AddHours(-4), Now.AddHours(4), ShiftStatus.Assigned, agent.Id);
+        var request = ctx.Db.AddAgentRequest(
+            agent.Id, shift.Id, AgentRequestType.Downtime, AgentRequestStatus.Pending,
+            shift.StartUtc.AddMinutes(-1), shift.StartUtc.AddHours(1));
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
+            Service(ctx, StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id))
+                .ApproveAsync(request.Id, CancellationToken.None));
+    }
 }
