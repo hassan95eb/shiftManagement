@@ -1,0 +1,14 @@
+# Build context is the repo root (docker-compose.yml). Keep it small and keep
+# host build output -- with the wrong RID -- out of the image.
+**/bin/
+**/obj/
+**/.vs/
+.git/
+.github/
+.vscode/
+node_modules/
+**/__pycache__/
+*.user
+# Secrets never belong in an image layer. The Dockerfiles don't COPY it, but
+# exclude it from the context as well.
+.env
