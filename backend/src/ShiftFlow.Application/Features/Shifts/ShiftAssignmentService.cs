@@ -119,6 +119,14 @@ public sealed class ShiftAssignmentService
                 "Only an Assigned shift's assignment can be removed.");
         }
 
+        var hasAttendance = await _db.AttendanceSessions
+            .AnyAsync(a => a.ShiftId == shift.Id, cancellationToken);
+        if (hasAttendance)
+        {
+            throw new BusinessRuleViolationException(
+                "An assignment with attendance history cannot be removed.");
+        }
+
         shift.Status = ShiftStatus.Open;
         shift.AssignedCallAgentId = null;
 

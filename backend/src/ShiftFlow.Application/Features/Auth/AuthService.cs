@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
+using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Application.Features.Auth.Dtos;
 
 namespace ShiftFlow.Application.Features.Auth;
@@ -15,12 +16,18 @@ public sealed class AuthService
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _tokenService;
+    private readonly AttendanceService _attendance;
 
-    public AuthService(IAppDbContext db, IPasswordHasher passwordHasher, IJwtTokenService tokenService)
+    public AuthService(
+        IAppDbContext db,
+        IPasswordHasher passwordHasher,
+        IJwtTokenService tokenService,
+        AttendanceService attendance)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _attendance = attendance;
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
@@ -39,6 +46,11 @@ public sealed class AuthService
 
         var supervisorId = user.Supervisor?.Id;
         var callAgentId = user.CallAgent?.Id;
+
+        if (callAgentId is not null)
+        {
+            await _attendance.OpenForLoginAsync(callAgentId.Value, cancellationToken);
+        }
 
         var token = _tokenService.CreateAccessToken(user, supervisorId, callAgentId);
 

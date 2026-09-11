@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Features.Applications;
+using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Application.Features.Auth;
 using ShiftFlow.Application.Features.Availabilities;
 using ShiftFlow.Application.Features.CallAgents;
@@ -21,6 +22,7 @@ public static class DependencyInjection
         services.AddScoped<IAccessScope, AccessScope>();
 
         services.AddScoped<AuthService>();
+        services.AddScoped<AttendanceService>();
         services.AddScoped<ProjectService>();
         services.AddScoped<CallAgentService>();
         services.AddScoped<CallAgentProjectService>();

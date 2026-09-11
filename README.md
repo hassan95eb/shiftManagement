@@ -93,6 +93,7 @@ missing, and the errors are not self-explanatory:
 | `Jwt__Issuer` | no | defaults to `shiftflow` |
 | `Jwt__Audience` | no | defaults to `shiftflow` |
 | `Jwt__AccessTokenLifetimeMinutes` | no | defaults to `60` |
+| `Attendance__StalenessThresholdSeconds` | no | defaults to `120`; client heartbeat interval is 60 seconds |
 | `AutoMigrate` | no | `true` runs migrate + seed outside `Development`; leave unset in production |
 | `ASPNETCORE_ENVIRONMENT` | no | `Development` (the default in `launchSettings.json`) enables Swagger and migrate + seed |
 
@@ -162,6 +163,9 @@ except `login` requires `Authorization: Bearer <token>`; the token's role must m
 | Method & path | Role | Purpose |
 |---|---|---|
 | `POST /api/auth/login` | anonymous | exchange username + password for a JWT |
+| `POST /api/attendance/heartbeat` | CallAgent | refresh the current open attendance session |
+| `POST /api/attendance/logout` | CallAgent | close the current open attendance session |
+| `GET /api/attendance/active` | Supervisor or Manager | fresh active agents; Supervisor scoped, Manager global |
 | `GET /api/projects` | Supervisor | list your projects |
 | `POST /api/projects` | Supervisor | create a project |
 | `GET /api/projects/{id}` | Supervisor | one project |

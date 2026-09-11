@@ -174,4 +174,25 @@ public static class TestData
         db.SaveChanges();
         return recommendation;
     }
+
+    public static AttendanceSession AddAttendanceSession(
+        this AppDbContext db,
+        int callAgentId,
+        int shiftId,
+        DateTime startedAtUtc,
+        DateTime lastSeenUtc,
+        DateTime? endedAtUtc = null)
+    {
+        var session = new AttendanceSession
+        {
+            CallAgentId = callAgentId,
+            ShiftId = shiftId,
+            StartedAtUtc = startedAtUtc,
+            LastSeenUtc = lastSeenUtc,
+            EndedAtUtc = endedAtUtc,
+        };
+        db.AttendanceSessions.Add(session);
+        db.SaveChanges();
+        return session;
+    }
 }
