@@ -8,8 +8,9 @@ single transaction that also rejects the other applicants. A standalone Python s
 human-readable reason back to the database.
 
 This repository is the **backend**: an ASP.NET Core API, EF Core persistence against
-SQL Server, and an xUnit suite. The React frontend, the Python recommender, and the full
-`docker compose` topology land in their own phases (see `CLAUDE.md` §10).
+SQL Server, an xUnit suite, the Python recommender, and a `docker compose` stack that runs
+the database and API together. The React frontend and the `web` (nginx) service land in
+their own phases (see `CLAUDE.md` §10).
 
 ## Architecture
 
@@ -46,18 +47,31 @@ Deliberate choices:
 
 ## Quick Start (Docker)
 
-Only the **database** service exists in `docker-compose.yml` today; the `api`, `web`, and
-one-shot `recommender` services are added in the Docker phase (`CLAUDE.md` §10 step 14).
-Until then:
+`docker-compose.yml` has the **database** and **api** services plus the one-shot
+**recommender** (behind a profile); the `web` (nginx) service is added in the full-compose
+phase (`CLAUDE.md` §10 step 14).
 
 ```bash
 cp .env.example .env          # then edit MSSQL_SA_PASSWORD to a strong value
-docker compose up -d db       # SQL Server, with a healthcheck
+docker compose up --build     # SQL Server + API
 ```
 
-Then run the API from source as in [Manual Setup](#manual-setup). In `Development` the API
-applies migrations and inserts the [scenario seed](#seed-scenario-map) on startup, so the
-database is ready the first time it boots.
+`api` waits for the database's healthcheck, then — because it runs with
+`ASPNETCORE_ENVIRONMENT=Development` — applies migrations and inserts the
+[scenario seed](#seed-scenario-map) on startup. A cold start on an empty volume ends with a
+ready database. Both secrets (`Jwt__Key`, and the SA password the connection string is built
+from) come from `.env`.
+
+Once it is up:
+
+| URL | What you should see |
+|---|---|
+| `http://localhost:8080/swagger` | Swagger UI |
+| `POST http://localhost:8080/api/auth/login` with `{"username":"employer","password":"Demo!Pass1"}` | `200` with an `accessToken` |
+| `GET http://localhost:8080/api/shifts/1/recommendations` + `Authorization: Bearer <token>` | `ada` 76.10, `nate` 71.50, `kite` 70.90 |
+
+To run the API from source instead, see [Manual Setup](#manual-setup) — that path is
+unchanged and does not need the `api` container.
 
 ## Manual Setup
 
@@ -506,3 +520,8 @@ Kept as a running log (docs/02 §11).
   the gated migrate + seed with no password logged, tests for the
   previously-uncovered decision branches (already-decided, cross-project
   overlap, unknown reject id), and this README.
+- **Claude Code** — Prompt 13 (docker api): `docker/api.Dockerfile` (multi-stage
+  SDK build → aspnet:10.0 runtime image), the `api` service in
+  `docker-compose.yml` depending on the db healthcheck, both secrets sourced
+  from `.env` with the connection string assembled around `MSSQL_HOST=db`, and
+  the Quick Start section. Local `dotnet run` / user-secrets unchanged.
