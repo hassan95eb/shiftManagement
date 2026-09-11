@@ -22,7 +22,16 @@ yet: the UI is designed first, implementation follows.
 1. **At most one EF migration per prompt.** If a prompt would produce two, it was
    scoped wrong — stop and say so in the report.
 2. After any migration, regenerate `database/01-schema.sql` and `02-indexes.sql`
-   with `dotnet ef migrations script`. Only `03-seed.sql` is hand-written.
+   with `dotnet ef migrations script --idempotent --no-transactions` — that flag
+   pair is the standing command, not a one-off choice. Split the output by
+   **statement kind**, not by position in the generated file: see
+   docs/02-repository-structure.md §2 for the exact rule (position-based
+   splitting broke the moment a second migration existed — V1.1 fixed it once,
+   do not reintroduce it). Only `03-seed.sql` is hand-written. After
+   regenerating, rebuild a fresh database from `01` + `02` + `03-seed.sql` and
+   diff it against a database that got there via `dotnet ef database update`
+   directly — they must match — and confirm `dotnet ef migrations
+   has-pending-model-changes` reports none.
 3. Conventional Commits, with a body explaining the reasoning and referencing the
    relevant doc under `docs/`.
 4. No AI attribution anywhere: no `Co-Authored-By`, no `Generated with`, no
@@ -162,7 +171,7 @@ ad-hoc supervisor filtering with one scope abstraction.
 - Seed one Manager user.
 - Introduce `IAccessScope` in Application with an implementation that returns
   "all" for a Manager and "own supervisor id" for a Supervisor. Replace every
-  direct `EmployerId`/`SupervisorId` filter in services with it.
+  direct `SupervisorId` filter in services with it.
 - Move project create/update/delete authorization from Supervisor to Manager.
   Project creation requires a `SupervisorId` in the body.
 - Add `PUT /api/projects/{id}/supervisor` for reassignment (Manager only).

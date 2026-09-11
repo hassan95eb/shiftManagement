@@ -1,22 +1,32 @@
 -- ---------------------------------------------------------------------------
--- ShiftFlow - indexes (secondary, unique, filtered), every migration after
--- the first (currently: the Expert/Employer -> CallAgent/Supervisor rename),
--- and the migration history stamps.
+-- ShiftFlow - indexes (secondary, unique, filtered) + migration history stamps
 --
 -- GENERATED FILE - DO NOT EDIT BY HAND.
 -- Produced from the EF Core migrations with:
 --   dotnet ef migrations script --idempotent --no-transactions
--- (see backend/src/ShiftFlow.Infrastructure/Persistence/Migrations).
+-- (see backend/src/ShiftFlow.Infrastructure/Persistence/Migrations), then
+-- split by STATEMENT KIND (see docs/02-repository-structure.md), not by
+-- position in the generated file.
 -- Regenerate this file after every migration; never patch it directly.
 -- Source of truth for the shape below: docs/01-erd-and-schema.md.
 --
--- Run 01-schema.sql and 02-indexes.sql in order, as a pair. This file depends
--- on the tables created by 01-schema.sql, and it also inserts the
--- __EFMigrationsHistory rows that mark each migration as applied. Everything
--- past the InitialCreate indexes must stay in this file rather than moving to
--- 01: a later migration's renames target objects (indexes included) that
--- InitialCreate creates, so migration order — all of InitialCreate, then all
--- of the next migration, in sequence — has to survive the split.
+-- Only CREATE INDEX / CREATE UNIQUE INDEX and index renames live here, plus
+-- the __EFMigrationsHistory stamp for each migration, placed right after
+-- that migration's own last guarded statement (never earlier -- an earlier
+-- stamp would make a later statement guarded on the same migration id skip
+-- itself as "already applied").
+--
+-- A CREATE INDEX carried over from an earlier migration is written against
+-- the CURRENT table/column names, not the names that migration originally
+-- used: by the time this file runs, 01-schema.sql has already renamed them,
+-- so the original names no longer resolve. Its guard condition is left
+-- alone (it is still that earlier migration's own work), and the index
+-- itself still gets its original name -- the later migration's own rename
+-- statement (copied verbatim) renames it to the current name right after,
+-- exactly as EF generated it.
+--
+-- This file depends on the tables created by 01-schema.sql and, critically,
+-- on 01-schema.sql's renames having already run -- it does not stand alone.
 --
 -- The session must have SET QUOTED_IDENTIFIER ON (with sqlcmd, pass -I). The
 -- filtered index below (UX_ShiftApplications_OneApproved) will not create
@@ -28,7 +38,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE INDEX [IX_Availabilities_Expert_Range] ON [Availabilities] ([ExpertId], [StartUtc], [EndUtc]);
+    CREATE INDEX [IX_Availabilities_Expert_Range] ON [Availabilities] ([CallAgentId], [StartUtc], [EndUtc]);
 END;
 GO
 
@@ -37,7 +47,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UQ_Employers_UserId] ON [Employers] ([UserId]);
+    CREATE UNIQUE INDEX [UQ_Employers_UserId] ON [Supervisors] ([UserId]);
 END;
 GO
 
@@ -46,7 +56,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE INDEX [IX_ExpertProjects_ProjectId] ON [ExpertProjects] ([ProjectId]);
+    CREATE INDEX [IX_ExpertProjects_ProjectId] ON [CallAgentProjects] ([ProjectId]);
 END;
 GO
 
@@ -55,7 +65,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UQ_ExpertRatings_Expert_Period] ON [ExpertRatings] ([ExpertId], [Period]);
+    CREATE UNIQUE INDEX [UQ_ExpertRatings_Expert_Period] ON [Ratings] ([CallAgentId], [Period]);
 END;
 GO
 
@@ -64,7 +74,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UQ_Experts_UserId] ON [Experts] ([UserId]);
+    CREATE UNIQUE INDEX [UQ_Experts_UserId] ON [CallAgents] ([UserId]);
 END;
 GO
 
@@ -73,7 +83,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UQ_Projects_Employer_Name] ON [Projects] ([EmployerId], [Name]);
+    CREATE UNIQUE INDEX [UQ_Projects_Employer_Name] ON [Projects] ([SupervisorId], [Name]);
 END;
 GO
 
@@ -82,7 +92,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE INDEX [IX_Recommendations_ExpertId] ON [Recommendations] ([ExpertId]);
+    CREATE INDEX [IX_Recommendations_ExpertId] ON [Recommendations] ([CallAgentId]);
 END;
 GO
 
@@ -100,7 +110,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UQ_Recommendations_Shift_Expert] ON [Recommendations] ([ShiftId], [ExpertId]);
+    CREATE UNIQUE INDEX [UQ_Recommendations_Shift_Expert] ON [Recommendations] ([ShiftId], [CallAgentId]);
 END;
 GO
 
@@ -118,7 +128,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE INDEX [IX_ShiftApplications_Expert_Status] ON [ShiftApplications] ([ExpertId], [Status]) INCLUDE ([ShiftId]);
+    CREATE INDEX [IX_ShiftApplications_Expert_Status] ON [ShiftApplications] ([CallAgentId], [Status]) INCLUDE ([ShiftId]);
 END;
 GO
 
@@ -136,7 +146,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260909225615_InitialCreate'
 )
 BEGIN
-    CREATE UNIQUE INDEX [UQ_ShiftApplications_Shift_Expert] ON [ShiftApplications] ([ShiftId], [ExpertId]);
+    CREATE UNIQUE INDEX [UQ_ShiftApplications_Shift_Expert] ON [ShiftApplications] ([ShiftId], [CallAgentId]);
 END;
 GO
 
@@ -191,52 +201,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
 )
 BEGIN
-    EXEC sp_rename N'[Employers]', N'Supervisors', 'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Supervisors].[PK_Employers]', N'PK_Supervisors', 'INDEX';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
     EXEC sp_rename N'[Supervisors].[UQ_Employers_UserId]', N'UQ_Supervisors_UserId', 'INDEX';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'dbo.FK_Employers_Users_UserId', N'FK_Supervisors_Users_UserId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Experts]', N'CallAgents', 'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[CallAgents].[PK_Experts]', N'PK_CallAgents', 'INDEX';
 END;
 GO
 
@@ -254,42 +219,6 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
 )
 BEGIN
-    EXEC sp_rename N'dbo.FK_Experts_Users_UserId', N'FK_CallAgents_Users_UserId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[ExpertProjects]', N'CallAgentProjects', 'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[CallAgentProjects].[ExpertId]', N'CallAgentId', 'COLUMN';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[CallAgentProjects].[PK_ExpertProjects]', N'PK_CallAgentProjects', 'INDEX';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
     EXEC sp_rename N'[CallAgentProjects].[IX_ExpertProjects_ProjectId]', N'IX_CallAgentProjects_ProjectId', 'INDEX';
 END;
 GO
@@ -299,106 +228,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
 )
 BEGIN
-    EXEC sp_rename N'dbo.FK_ExpertProjects_Experts_ExpertId', N'FK_CallAgentProjects_CallAgents_CallAgentId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'dbo.FK_ExpertProjects_Projects_ProjectId', N'FK_CallAgentProjects_Projects_ProjectId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[ExpertRatings]', N'Ratings', 'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Ratings].[ExpertId]', N'CallAgentId', 'COLUMN';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Ratings].[PK_ExpertRatings]', N'PK_Ratings', 'INDEX';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
     EXEC sp_rename N'[Ratings].[UQ_ExpertRatings_Expert_Period]', N'UQ_Ratings_CallAgent_Period', 'INDEX';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'dbo.CK_ExpertRatings_Score', N'CK_Ratings_Score', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'dbo.FK_ExpertRatings_Experts_ExpertId', N'FK_Ratings_CallAgents_CallAgentId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    ALTER TABLE [Users] DROP CONSTRAINT [CK_Users_Role];
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    UPDATE [Users] SET [Role] = 'Supervisor' WHERE [Role] = 'Employer';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    UPDATE [Users] SET [Role] = 'CallAgent' WHERE [Role] = 'Expert';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[ShiftApplications].[ExpertId]', N'CallAgentId', 'COLUMN';
 END;
 GO
 
@@ -425,24 +255,6 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
 )
 BEGIN
-    EXEC sp_rename N'dbo.FK_ShiftApplications_Experts_ExpertId', N'FK_ShiftApplications_CallAgents_CallAgentId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Recommendations].[ExpertId]', N'CallAgentId', 'COLUMN';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
     EXEC sp_rename N'[Recommendations].[UQ_Recommendations_Shift_Expert]', N'UQ_Recommendations_Shift_CallAgent', 'INDEX';
 END;
 GO
@@ -461,24 +273,6 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
 )
 BEGIN
-    EXEC sp_rename N'dbo.FK_Recommendations_Experts_ExpertId', N'FK_Recommendations_CallAgents_CallAgentId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Projects].[EmployerId]', N'SupervisorId', 'COLUMN';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
     EXEC sp_rename N'[Projects].[UQ_Projects_Employer_Name]', N'UQ_Projects_Supervisor_Name', 'INDEX';
 END;
 GO
@@ -488,43 +282,7 @@ IF NOT EXISTS (
     WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
 )
 BEGIN
-    EXEC sp_rename N'dbo.FK_Projects_Employers_EmployerId', N'FK_Projects_Supervisors_SupervisorId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'[Availabilities].[ExpertId]', N'CallAgentId', 'COLUMN';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
     EXEC sp_rename N'[Availabilities].[IX_Availabilities_Expert_Range]', N'IX_Availabilities_CallAgent_Range', 'INDEX';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC sp_rename N'dbo.FK_Availabilities_Experts_ExpertId', N'FK_Availabilities_CallAgents_CallAgentId', N'OBJECT';
-END;
-GO
-
-IF NOT EXISTS (
-    SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911151445_RenameEmployerSupervisorExpertCallAgent'
-)
-BEGIN
-    EXEC(N'ALTER TABLE [Users] ADD CONSTRAINT [CK_Users_Role] CHECK ([Role] IN (''Supervisor'', ''CallAgent''))');
 END;
 GO
 

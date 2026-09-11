@@ -72,6 +72,39 @@ shiftflow/
 
 پوشه‌ی `docs/` عمداً هست. Reviewer وقتی می‌بیند طراحی **قبل** از کد مستند شده، برداشتش از پروژه کاملاً فرق می‌کند.
 
+### تولید و split کردن `database/01-schema.sql` و `02-indexes.sql`
+
+این دو فایل همیشه با همین یک فرمان تولید می‌شوند — این استاندارد ثابت پروژه است،
+نه یک انتخاب یک‌باره:
+
+```
+dotnet ef migrations script --idempotent --no-transactions
+```
+
+Split بر اساس **نوع statement** انجام می‌شود، نه موقعیتش در فایل تولیدشده
+(موقعیت فقط تا وقتی جواب می‌دهد که پروژه یک migration داشته باشد؛ از migration
+دوم به بعد rename‌ها به index‌هایی نیاز دارند که migration اول ساخته، پس ترتیب
+واقعی migration‌ها باید حفظ شود):
+
+- **`01-schema.sql`**: هر `CREATE TABLE`، و هر rename روی table / column / PK /
+  FK / CHECK constraint، از هر migration، به‌ترتیب migration. وسط فایل ممکن
+  است هنوز اسم قدیمی یک migration دیده شود، ولی فایل همیشه با اسم‌های نهایی
+  (فعلی) تمام می‌شود.
+- **`02-indexes.sql`**: فقط `CREATE INDEX` / `CREATE UNIQUE INDEX` و rename
+  روی index‌ها، به‌علاوه ردیف‌های `__EFMigrationsHistory`. PK جزو `01` حساب
+  می‌شود (مفهوماً بخشی از shape جدول است، نه یک index مستقل) حتی وقتی EF آن
+  را با `sp_rename ... 'INDEX'` پیاده می‌کند.
+  - یک `CREATE INDEX` که از یک migration قدیمی‌تر آمده و جدول/ستونش در `01`
+    rename شده، باید با اسم **فعلی** (بعد از rename) نوشته شود، نه اسمی که آن
+    migration اصلاً تولید کرده — چون وقتی `02` اجرا می‌شود، `01` قبلاً کامل
+    اجرا شده. اسم خودِ index دست‌نخورده می‌ماند (guard آن هم روی همان migration
+    قدیمی‌تر می‌ماند)؛ rename بعدی — که عیناً از خروجی EF کپی می‌شود، بدون هیچ
+    تغییری — آن را به اسم فعلی تغییر می‌دهد.
+  - ردیف `__EFMigrationsHistory` هر migration باید **بعد از آخرین statement‌ی
+    که با آن migration guard شده** بیاید، نه زودتر — وگرنه statement‌های بعدی
+    که روی همان migration id چک می‌کنند فکر می‌کنند قبلاً اجرا شده‌اند و خودشان
+    را skip می‌کنند.
+
 ---
 
 ## ۳. ساختار داخلی Backend
