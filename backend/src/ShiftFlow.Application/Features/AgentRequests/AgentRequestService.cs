@@ -224,12 +224,13 @@ public sealed class AgentRequestService
             .Select(r => new { r.StartUtc, r.EndUtc })
             .ToListAsync(cancellationToken);
 
-        var month = new DateTime(candidate.StartUtc.Year, candidate.StartUtc.Month, 1, 0, 0, 0, DateTimeKind.Utc);
-        while (month < candidate.EndUtc)
+        var month = _leaveYear.ResolveMonth(candidate.StartUtc);
+        while (month.StartUtc < candidate.EndUtc)
         {
-            var nextMonth = month.AddMonths(1);
-            var existingTicks = approved.Sum(r => OverlapTicks(r.StartUtc, r.EndUtc, month, nextMonth));
-            var candidateTicks = OverlapTicks(candidate.StartUtc, candidate.EndUtc, month, nextMonth);
+            var existingTicks = approved.Sum(r =>
+                OverlapTicks(r.StartUtc, r.EndUtc, month.StartUtc, month.EndUtc));
+            var candidateTicks = OverlapTicks(
+                candidate.StartUtc, candidate.EndUtc, month.StartUtc, month.EndUtc);
             var totalHours = (existingTicks + candidateTicks) / (decimal)TimeSpan.TicksPerHour;
             if (totalHours > _options.DowntimeCapHours)
             {
@@ -237,7 +238,7 @@ public sealed class AgentRequestService
                     $"Approved downtime cannot exceed {_options.DowntimeCapHours:0.##} hours per month.");
             }
 
-            month = nextMonth;
+            month = _leaveYear.ResolveMonth(month.EndUtc);
         }
     }
 

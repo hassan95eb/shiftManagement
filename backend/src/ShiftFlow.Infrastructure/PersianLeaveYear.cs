@@ -14,10 +14,7 @@ public sealed class PersianLeaveYear : ILeaveYear
 
     public LeaveYearRange Resolve(DateTime utcInstant)
     {
-        var utc = utcInstant.Kind == DateTimeKind.Utc
-            ? utcInstant
-            : DateTime.SpecifyKind(utcInstant, DateTimeKind.Utc);
-        var tehran = utc.Add(TehranOffset);
+        var tehran = AsUtc(utcInstant).Add(TehranOffset);
         var year = _calendar.GetYear(tehran);
 
         var localStart = _calendar.ToDateTime(year, 1, 1, 0, 0, 0, 0);
@@ -26,4 +23,21 @@ public sealed class PersianLeaveYear : ILeaveYear
             DateTime.SpecifyKind(localStart - TehranOffset, DateTimeKind.Utc),
             DateTime.SpecifyKind(localEnd - TehranOffset, DateTimeKind.Utc));
     }
+
+    public LeaveMonthRange ResolveMonth(DateTime utcInstant)
+    {
+        var tehran = AsUtc(utcInstant).Add(TehranOffset);
+        var year = _calendar.GetYear(tehran);
+        var month = _calendar.GetMonth(tehran);
+        var localStart = _calendar.ToDateTime(year, month, 1, 0, 0, 0, 0);
+        var localEnd = _calendar.AddMonths(localStart, 1);
+        return new LeaveMonthRange(
+            DateTime.SpecifyKind(localStart - TehranOffset, DateTimeKind.Utc),
+            DateTime.SpecifyKind(localEnd - TehranOffset, DateTimeKind.Utc));
+    }
+
+    private static DateTime AsUtc(DateTime instant) =>
+        instant.Kind == DateTimeKind.Utc
+            ? instant
+            : DateTime.SpecifyKind(instant, DateTimeKind.Utc);
 }

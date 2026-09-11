@@ -4,6 +4,10 @@ namespace ShiftFlow.Application.Abstractions;
 public interface ILeaveYear
 {
     LeaveYearRange Resolve(DateTime utcInstant);
+
+    LeaveMonthRange ResolveMonth(DateTime utcInstant);
 }
 
 public readonly record struct LeaveYearRange(DateTime StartUtc, DateTime EndUtc);
+
+public readonly record struct LeaveMonthRange(DateTime StartUtc, DateTime EndUtc);
