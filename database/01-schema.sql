@@ -534,7 +534,7 @@ GO
 
 IF NOT EXISTS (
     SELECT * FROM [__EFMigrationsHistory]
-    WHERE [MigrationId] = N'20260911222815_AddAttendanceSessions'
+    WHERE [MigrationId] = N'20260911230004_AddAttendanceSessions'
 )
 BEGIN
     CREATE TABLE [AttendanceSessions] (

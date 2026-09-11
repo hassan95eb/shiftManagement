@@ -85,19 +85,40 @@ public sealed class AttendanceService : IAttendanceRecorder
 
         if (session is null)
         {
-            _db.AttendanceSessions.Add(new AttendanceSession
+            var newSession = new AttendanceSession
             {
                 CallAgentId = callAgentId,
                 ShiftId = shiftId,
                 StartedAtUtc = now,
                 LastSeenUtc = now,
-            });
-        }
-        else
-        {
-            session.LastSeenUtc = now;
+            };
+            _db.AttendanceSessions.Add(newSession);
+
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateException)
+            {
+                _db.Entry(newSession).State = EntityState.Detached;
+
+                // A concurrent login or heartbeat may have won the filtered
+                // unique-index race after our first read. Re-read once and
+                // refresh that winner; unrelated insert failures still escape.
+                session = await _db.AttendanceSessions
+                    .Where(s => s.CallAgentId == callAgentId
+                                && s.ShiftId == shiftId
+                                && s.EndedAtUtc == null)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (session is null)
+                {
+                    throw;
+                }
+            }
         }
 
+        session.LastSeenUtc = now;
         await _db.SaveChangesAsync(cancellationToken);
     }
 

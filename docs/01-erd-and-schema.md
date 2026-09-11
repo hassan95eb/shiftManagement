@@ -554,7 +554,7 @@ Shift** همه‌جا Cascade است؛ هر FK که از سمت **CallAgent** م
 | `IX_CallAgentProjects_ProjectId` | `(ProjectId)` | جهت معکوس PK — کارشناسان یک پروژه |
 | `IX_Recommendations_Shift_Score` | `(ShiftId, Score DESC)` | خواندن رتبه‌بندی به ترتیب امتیاز |
 | `IX_AttendanceSessions_CallAgent_StartedAtUtc` | `(CallAgentId, StartedAtUtc)` | تاریخچه‌ی حضور یک کارشناس |
-| `IX_AttendanceSessions_Open` | `(CallAgentId, ShiftId)` WHERE `EndedAtUtc IS NULL` | یافتن/استفاده‌ی مجدد نشست باز همان شیفت |
+| `UX_AttendanceSessions_OneOpenPerShift` | `(CallAgentId, ShiftId)` WHERE `EndedAtUtc IS NULL` | یکتایی و یافتن/استفاده‌ی مجدد نشست باز همان شیفت |
 | `IX_AgentRequests_CallAgent_Type_Status` | `(CallAgentId, RequestType, Status)` | مانده‌ی مرخصی، سقف ماهانه‌ی Downtime |
 | `UX_AgentRequests_OneApprovedLeave` | `(ShiftId)` WHERE `Status = 'Approved' AND RequestType = 'Leave'` | جلوگیری از دو مرخصی تأییدشده روی یک شیفت (Race Condition) |
 | `IX_SupervisorEvaluations_CallAgent_Period` | `(CallAgentId, Period)` INCLUDE `(ScoreValue)` | میانگین ارزیابی‌های یک دوره برای موتور Rating |

@@ -29,7 +29,8 @@ public sealed class AttendanceSessionConfiguration : IEntityTypeConfiguration<At
             .HasDatabaseName("IX_AttendanceSessions_CallAgent_StartedAtUtc");
 
         builder.HasIndex(s => new { s.CallAgentId, s.ShiftId })
-            .HasDatabaseName("IX_AttendanceSessions_Open")
+            .IsUnique()
+            .HasDatabaseName("UX_AttendanceSessions_OneOpenPerShift")
             .HasFilter("[EndedAtUtc] IS NULL");
 
         builder.HasOne(s => s.CallAgent)

@@ -44,15 +44,16 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                 columns: new[] { "CallAgentId", "StartedAtUtc" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_AttendanceSessions_Open",
-                table: "AttendanceSessions",
-                columns: new[] { "CallAgentId", "ShiftId" },
-                filter: "[EndedAtUtc] IS NULL");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_AttendanceSessions_ShiftId",
                 table: "AttendanceSessions",
                 column: "ShiftId");
+
+            migrationBuilder.CreateIndex(
+                name: "UX_AttendanceSessions_OneOpenPerShift",
+                table: "AttendanceSessions",
+                columns: new[] { "CallAgentId", "ShiftId" },
+                unique: true,
+                filter: "[EndedAtUtc] IS NULL");
         }
 
         /// <inheritdoc />

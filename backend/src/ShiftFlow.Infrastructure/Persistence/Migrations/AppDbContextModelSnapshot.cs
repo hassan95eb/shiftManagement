@@ -50,7 +50,8 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.HasIndex("ShiftId");
 
                     b.HasIndex("CallAgentId", "ShiftId")
-                        .HasDatabaseName("IX_AttendanceSessions_Open")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AttendanceSessions_OneOpenPerShift")
                         .HasFilter("[EndedAtUtc] IS NULL");
 
                     b.HasIndex("CallAgentId", "StartedAtUtc")

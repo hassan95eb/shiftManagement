@@ -221,4 +221,20 @@ public class AttendanceSessionLifecycleTests
 
         Assert.False(await ctx.NewContext().AttendanceSessions.AnyAsync());
     }
+
+    [Fact]
+    public void Two_open_sessions_for_the_same_agent_and_shift_cannot_coexist()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        var start = new DateTime(2026, 7, 1, 8, 0, 0, DateTimeKind.Utc);
+        var shift = ctx.Db.AddShift(
+            project.Id, start, start.AddHours(8), ShiftStatus.Assigned, agent.Id);
+        ctx.Db.AddAttendanceSession(agent.Id, shift.Id, start, start.AddMinutes(1));
+
+        Assert.Throws<DbUpdateException>(() =>
+            ctx.Db.AddAttendanceSession(agent.Id, shift.Id, start.AddMinutes(2), start.AddMinutes(3)));
+    }
 }

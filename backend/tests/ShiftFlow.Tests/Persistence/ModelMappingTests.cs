@@ -88,13 +88,13 @@ public class ModelMappingTests
     }
 
     [Fact]
-    public void Open_attendance_index_is_filtered_to_sessions_without_an_end()
+    public void Open_attendance_index_is_filtered_and_unique_per_agent_shift()
     {
         var index = Model().FindEntityType(typeof(AttendanceSession))!
             .GetIndexes()
-            .Single(i => i.GetDatabaseName() == "IX_AttendanceSessions_Open");
+            .Single(i => i.GetDatabaseName() == "UX_AttendanceSessions_OneOpenPerShift");
 
-        Assert.False(index.IsUnique);
+        Assert.True(index.IsUnique);
         Assert.Equal(new[] { "CallAgentId", "ShiftId" }, index.Properties.Select(p => p.Name));
         Assert.Equal("[EndedAtUtc] IS NULL", index.GetFilter());
     }

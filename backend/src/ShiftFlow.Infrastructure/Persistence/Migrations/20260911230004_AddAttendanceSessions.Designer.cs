@@ -12,7 +12,7 @@ using ShiftFlow.Infrastructure.Persistence;
 namespace ShiftFlow.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260911222815_AddAttendanceSessions")]
+    [Migration("20260911230004_AddAttendanceSessions")]
     partial class AddAttendanceSessions
     {
         /// <inheritdoc />
@@ -53,7 +53,8 @@ namespace ShiftFlow.Infrastructure.Persistence.Migrations
                     b.HasIndex("ShiftId");
 
                     b.HasIndex("CallAgentId", "ShiftId")
-                        .HasDatabaseName("IX_AttendanceSessions_Open")
+                        .IsUnique()
+                        .HasDatabaseName("UX_AttendanceSessions_OneOpenPerShift")
                         .HasFilter("[EndedAtUtc] IS NULL");
 
                     b.HasIndex("CallAgentId", "StartedAtUtc")
