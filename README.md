@@ -471,6 +471,7 @@ What a production system would add, and why it is out of scope here:
 - **Rating ingestion.** `ExpertRatings` is seed-only. A real system feeds it from a QA pipeline or customer surveys, with its own history and audit.
 - **A `ScoringWeights` table + admin UI.** Weights live in configuration; making them runtime-editable is a feature the brief does not need.
 - **Soft delete / audit history tables.** Deletes are physical and FK-controlled; a compliance context would want tombstones and full audit trails.
+- **Application-level DB resilience.** Startup ordering relies on the Compose healthcheck (`condition: service_healthy`), not on connection retry in the app — enough for one local SQL Server container, but a managed database (failovers, transient throttling) would want `EnableRetryOnFailure` on the EF Core provider and retry-aware transactions.
 
 ## AI Tools Used
 
