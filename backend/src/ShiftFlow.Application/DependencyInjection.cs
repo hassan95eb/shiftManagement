@@ -1,5 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
 using ShiftFlow.Application.Abstractions;
+using ShiftFlow.Application.Features.AgentRequests;
 using ShiftFlow.Application.Features.Applications;
 using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Application.Features.Auth;
@@ -33,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<OpenShiftService>();
         services.AddScoped<ApplicationService>();
         services.AddScoped<ApprovalService>();
+        services.AddScoped<AgentRequestService>();
         services.AddScoped<RecommendationService>();
 
         return services;

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Abstractions;
+using ShiftFlow.Application.Features.AgentRequests;
 using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Infrastructure.Identity;
 using ShiftFlow.Infrastructure.Persistence;
@@ -29,6 +30,13 @@ public static class DependencyInjection
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
         services.AddSingleton<IClock, SystemClock>();
+        services.AddSingleton<ILeaveYear, PersianLeaveYear>();
+
+        services.AddOptions<AgentRequestOptions>()
+            .Bind(configuration.GetSection(AgentRequestOptions.SectionName))
+            .Validate(o => o.MonthlyDowntimeHoursCap > 0,
+                "AgentRequests:MonthlyDowntimeHoursCap must be greater than zero.")
+            .ValidateOnStart();
 
         services.AddOptions<AttendanceOptions>()
             .Bind(configuration.GetSection(AttendanceOptions.SectionName))
