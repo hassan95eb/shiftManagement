@@ -1,5 +1,6 @@
 using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Domain.Entities;
+using ShiftFlow.Domain.Enums;
 
 namespace ShiftFlow.Tests.Attendance;
 
@@ -54,5 +55,22 @@ public class AttendanceCalculatorTests
     public void Approved_leave_or_downtime_prevents_absence()
     {
         Assert.False(AttendanceCalculator.IsAbsent(Shift(), [], Start.AddHours(9), true, true));
+    }
+
+    [Fact]
+    public void Approved_leave_removes_the_whole_shift_from_expected_hours()
+    {
+        var shift = Shift();
+        var leave = new AgentRequest
+        {
+            ShiftId = shift.Id,
+            RequestType = AgentRequestType.Leave,
+            Status = AgentRequestStatus.Approved,
+            StartUtc = shift.StartUtc,
+            EndUtc = shift.EndUtc,
+        };
+
+        Assert.Equal(0m, AttendanceCalculator.ExpectedHours(shift, [leave]));
+        Assert.False(AttendanceCalculator.IsAbsent(shift, [], [leave], shift.EndUtc, true));
     }
 }

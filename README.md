@@ -95,6 +95,7 @@ missing, and the errors are not self-explanatory:
 | `Jwt__AccessTokenLifetimeMinutes` | no | defaults to `60` |
 | `ATTENDANCE__STALENESSSECONDS` | no | defaults to `120`; maximum age of an active session's heartbeat |
 | `ATTENDANCE__HEARTBEATSECONDS` | no | defaults to `60`; reserved for the future React client interval |
+| `AGENTREQUESTS__MONTHLYDOWNTIMEHOURSCAP` | no | defaults to `8`; approved downtime hours allowed per agent and UTC calendar month |
 | `AutoMigrate` | no | `true` runs migrate + seed outside `Development`; leave unset in production |
 | `ASPNETCORE_ENVIRONMENT` | no | `Development` (the default in `launchSettings.json`) enables Swagger and migrate + seed |
 
