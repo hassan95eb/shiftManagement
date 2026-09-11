@@ -28,7 +28,7 @@ public class AttendanceCalculatorTests
     }
 
     [Fact]
-    public void Session_time_is_clipped_to_the_shift_and_capped_at_its_duration()
+    public void Session_time_is_clipped_to_the_shift_window()
     {
         var hours = AttendanceCalculator.PresentHours(
             Shift(),
