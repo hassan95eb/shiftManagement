@@ -10,10 +10,11 @@ using ShiftFlow.Domain.Exceptions;
 namespace ShiftFlow.Application.Features.Shifts;
 
 /// <summary>
-/// Supervisor-facing shift use cases. Every method is scoped through the shift's
-/// project to <see cref="ICurrentUser.RequireSupervisorId"/>: a shift on another
-/// supervisor's project is treated exactly like one that does not exist
-/// (<see cref="NotFoundException"/>), so ids cannot be probed (CLAUDE.md §7).
+/// Shift use cases, writable by a Supervisor only. Reads go through
+/// <see cref="IAccessScope"/>: a shift on another supervisor's project is
+/// treated exactly like one that does not exist (<see cref="NotFoundException"/>)
+/// for a Supervisor caller, so ids cannot be probed (CLAUDE.md §7); a Manager
+/// sees every shift.
 /// </summary>
 /// <remarks>
 /// A supervisor may set a shift's schedule only at creation, and may correct it
@@ -30,24 +31,24 @@ namespace ShiftFlow.Application.Features.Shifts;
 public sealed class ShiftService
 {
     private readonly IAppDbContext _db;
-    private readonly ICurrentUser _currentUser;
+    private readonly IAccessScope _accessScope;
     private readonly IClock _clock;
 
-    public ShiftService(IAppDbContext db, ICurrentUser currentUser, IClock clock)
+    public ShiftService(IAppDbContext db, IAccessScope accessScope, IClock clock)
     {
         _db = db;
-        _currentUser = currentUser;
+        _accessScope = accessScope;
         _clock = clock;
     }
 
     /// <summary>Creates an <see cref="ShiftStatus.Open"/> shift on one of the caller's projects.</summary>
     public async Task<ShiftResponse> CreateAsync(CreateShiftRequest request, CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
         var (projectId, startUtc, endUtc) = ShiftRequestValidator.ValidateAndNormalize(request);
 
-        var projectExists = await _db.Projects
-            .AnyAsync(p => p.Id == projectId && p.SupervisorId == supervisorId, cancellationToken);
+        var projectExists = await _accessScope
+            .RestrictToOwnSupervisor(_db.Projects.Where(p => p.Id == projectId), p => p.SupervisorId)
+            .AnyAsync(cancellationToken);
         if (!projectExists)
         {
             throw new NotFoundException("Project not found.");
@@ -73,11 +74,7 @@ public sealed class ShiftService
         ShiftListFilter filter,
         CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
-
-        var query = _db.Shifts
-            .AsNoTracking()
-            .Where(s => s.Project.SupervisorId == supervisorId);
+        var query = _accessScope.RestrictToOwnSupervisor(_db.Shifts.AsNoTracking(), s => s.Project.SupervisorId);
 
         if (filter.ProjectId is { } projectId)
         {
@@ -170,9 +167,7 @@ public sealed class ShiftService
     /// </summary>
     private async Task<Shift> FindOwnedAsync(int id, bool tracked, CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
-
-        var query = _db.Shifts.Where(s => s.Id == id && s.Project.SupervisorId == supervisorId);
+        var query = _accessScope.RestrictToOwnSupervisor(_db.Shifts.Where(s => s.Id == id), s => s.Project.SupervisorId);
         if (!tracked)
         {
             query = query.AsNoTracking();

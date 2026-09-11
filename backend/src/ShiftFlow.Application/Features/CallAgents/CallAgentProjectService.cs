@@ -21,12 +21,14 @@ public sealed class CallAgentProjectService
 {
     private readonly IAppDbContext _db;
     private readonly ICurrentUser _currentUser;
+    private readonly IAccessScope _accessScope;
     private readonly IClock _clock;
 
-    public CallAgentProjectService(IAppDbContext db, ICurrentUser currentUser, IClock clock)
+    public CallAgentProjectService(IAppDbContext db, ICurrentUser currentUser, IAccessScope accessScope, IClock clock)
     {
         _db = db;
         _currentUser = currentUser;
+        _accessScope = accessScope;
         _clock = clock;
     }
 
@@ -128,12 +130,13 @@ public sealed class CallAgentProjectService
         int callAgentId,
         CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
         await GuardCallAgentExistsAsync(callAgentId, cancellationToken);
 
-        return await _db.CallAgentProjects
-            .AsNoTracking()
-            .Where(ep => ep.CallAgentId == callAgentId && ep.Project.SupervisorId == supervisorId)
+        var query = _accessScope.RestrictToOwnSupervisor(
+            _db.CallAgentProjects.AsNoTracking().Where(ep => ep.CallAgentId == callAgentId),
+            ep => ep.Project.SupervisorId);
+
+        return await query
             .OrderBy(ep => ep.Project.Name)
             .Select(ep => new ProjectResponse(
                 ep.Project.Id,
@@ -171,10 +174,9 @@ public sealed class CallAgentProjectService
     /// </summary>
     private async Task<Project> FindOwnedProjectAsync(int projectId, CancellationToken cancellationToken)
     {
-        var supervisorId = _currentUser.RequireSupervisorId();
-
-        return await _db.Projects
-                   .FirstOrDefaultAsync(p => p.Id == projectId && p.SupervisorId == supervisorId, cancellationToken)
+        return await _accessScope
+                   .RestrictToOwnSupervisor(_db.Projects.Where(p => p.Id == projectId), p => p.SupervisorId)
+                   .FirstOrDefaultAsync(cancellationToken)
                ?? throw new NotFoundException("Project not found.");
     }
 
