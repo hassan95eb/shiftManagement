@@ -63,6 +63,40 @@ public sealed class AgentRequestService
         return await ToResponseAsync(entity, cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AgentRequestResponse>> ListAsync(
+        AgentRequestListFilter filter,
+        CancellationToken cancellationToken)
+    {
+        var query = _db.AgentRequests.AsNoTracking();
+        query = _currentUser.Role == UserRole.CallAgent
+            ? query.Where(r => r.CallAgentId == _currentUser.RequireCallAgentId())
+            : _accessScope.RestrictToOwnSupervisor(query, r => r.Shift.Project.SupervisorId);
+
+        if (filter.Status is { } status)
+        {
+            query = query.Where(r => r.Status == status);
+        }
+
+        var rows = await query
+            .OrderBy(r => r.Status == AgentRequestStatus.Pending ? 0 : 1)
+            .ThenBy(r => r.RequestedAtUtc)
+            .ThenBy(r => r.Id)
+            .ToListAsync(cancellationToken);
+
+        var leaveAgentIds = rows
+            .Where(r => r.RequestType == AgentRequestType.Leave)
+            .Select(r => r.CallAgentId)
+            .Distinct()
+            .ToArray();
+        var balances = await RemainingLeaveDaysAsync(leaveAgentIds, cancellationToken);
+
+        return rows
+            .Select(r => ToResponse(
+                r,
+                r.RequestType == AgentRequestType.Leave ? balances[r.CallAgentId] : null))
+            .ToList();
+    }
+
     public async Task<AgentRequestResponse> ApproveAsync(int id, CancellationToken cancellationToken)
     {
         await using var transaction = await _db.BeginTransactionAsync(cancellationToken);
@@ -199,19 +233,35 @@ public sealed class AgentRequestService
 
     private async Task<int> RemainingLeaveDaysAsync(int callAgentId, CancellationToken cancellationToken)
     {
-        var allowance = await _db.CallAgents
-            .Where(a => a.Id == callAgentId)
-            .Select(a => a.AnnualLeaveDays)
-            .SingleAsync(cancellationToken);
+        var balances = await RemainingLeaveDaysAsync([callAgentId], cancellationToken);
+        return balances[callAgentId];
+    }
+
+    private async Task<IReadOnlyDictionary<int, int>> RemainingLeaveDaysAsync(
+        int[] callAgentIds,
+        CancellationToken cancellationToken)
+    {
+        if (callAgentIds.Length == 0)
+        {
+            return new Dictionary<int, int>();
+        }
+
         var year = _leaveYear.Resolve(_clock.UtcNow);
-        var used = await _db.AgentRequests.CountAsync(r =>
-            r.CallAgentId == callAgentId
-            && r.RequestType == AgentRequestType.Leave
-            && r.Status == AgentRequestStatus.Approved
-            && r.StartUtc >= year.StartUtc
-            && r.StartUtc < year.EndUtc,
-            cancellationToken);
-        return Math.Max(allowance - used, 0);
+        var rows = await _db.CallAgents
+            .AsNoTracking()
+            .Where(a => callAgentIds.Contains(a.Id))
+            .Select(a => new
+            {
+                a.Id,
+                a.AnnualLeaveDays,
+                Used = a.AgentRequests.Count(r =>
+                    r.RequestType == AgentRequestType.Leave
+                    && r.Status == AgentRequestStatus.Approved
+                    && r.StartUtc >= year.StartUtc
+                    && r.StartUtc < year.EndUtc),
+            })
+            .ToListAsync(cancellationToken);
+        return rows.ToDictionary(r => r.Id, r => Math.Max(r.AnnualLeaveDays - r.Used, 0));
     }
 
     private async Task GuardDowntimeCapAsync(AgentRequest candidate, CancellationToken cancellationToken)
@@ -251,7 +301,15 @@ public sealed class AgentRequestService
 
     private async Task<AgentRequestResponse> ToResponseAsync(
         AgentRequest request,
-        CancellationToken cancellationToken) =>
+        CancellationToken cancellationToken)
+    {
+        int? remaining = request.RequestType == AgentRequestType.Leave
+            ? await RemainingLeaveDaysAsync(request.CallAgentId, cancellationToken)
+            : null;
+        return ToResponse(request, remaining);
+    }
+
+    private static AgentRequestResponse ToResponse(AgentRequest request, int? remainingLeaveDays) =>
         new(
             request.Id,
             request.CallAgentId,
@@ -265,5 +323,5 @@ public sealed class AgentRequestService
             request.DecidedByUserId,
             request.DecidedAtUtc,
             request.DecisionNote,
-            await RemainingLeaveDaysAsync(request.CallAgentId, cancellationToken));
+            remainingLeaveDays);
 }

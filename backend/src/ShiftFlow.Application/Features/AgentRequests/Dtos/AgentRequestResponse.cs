@@ -13,4 +13,4 @@ public sealed record AgentRequestResponse(
     int? DecidedByUserId,
     DateTime? DecidedAtUtc,
     string? DecisionNote,
-    int RemainingLeaveDays);
+    int? RemainingLeaveDays);

@@ -220,4 +220,53 @@ public class AgentRequestTests
 
         Assert.Equal(2, await ctx.Db.AgentRequests.CountAsync());
     }
+
+    [Fact]
+    public async Task Request_list_is_scoped_for_call_agent_supervisor_and_manager()
+    {
+        using var ctx = new SqliteTestContext();
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var other = ctx.Db.AddSupervisor("Other");
+        var acmeProject = ctx.Db.AddProject(acme.Id, "Support");
+        var otherProject = ctx.Db.AddProject(other.Id, "Sales");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var mike = ctx.Db.AddCallAgent("Mike Roe");
+        var janeShift = ctx.Db.AddShift(acmeProject.Id, Now, Now.AddHours(8));
+        var mikeShift = ctx.Db.AddShift(otherProject.Id, Now, Now.AddHours(8));
+        ctx.Db.AddAgentRequest(jane.Id, janeShift.Id, AgentRequestType.Leave, AgentRequestStatus.Pending, janeShift.StartUtc, janeShift.EndUtc);
+        ctx.Db.AddAgentRequest(mike.Id, mikeShift.Id, AgentRequestType.Leave, AgentRequestStatus.Pending, mikeShift.StartUtc, mikeShift.EndUtc);
+
+        var filter = new AgentRequestListFilter();
+        var own = await Service(ctx, StubCurrentUser.CallAgent(jane.UserId, jane.Id)).ListAsync(filter, CancellationToken.None);
+        var supervised = await Service(ctx, StubCurrentUser.Supervisor(acme.UserId, acme.Id)).ListAsync(filter, CancellationToken.None);
+        var all = await Service(ctx, StubCurrentUser.Manager(999)).ListAsync(filter, CancellationToken.None);
+
+        Assert.Single(own);
+        Assert.Equal(jane.Id, own[0].CallAgentId);
+        Assert.Single(supervised);
+        Assert.Equal(jane.Id, supervised[0].CallAgentId);
+        Assert.Equal(2, all.Count);
+    }
+
+    [Fact]
+    public async Task Pending_leave_in_list_carries_current_balance()
+    {
+        using var ctx = new SqliteTestContext();
+        var supervisor = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(supervisor.Id, "Support");
+        var agent = ctx.Db.AddCallAgent("Jane Doe");
+        agent.AnnualLeaveDays = 2;
+        ctx.Db.SaveChanges();
+        var usedShift = ctx.Db.AddShift(project.Id, Now.AddDays(-2), Now.AddDays(-2).AddHours(8));
+        var pendingShift = ctx.Db.AddShift(project.Id, Now.AddDays(1), Now.AddDays(1).AddHours(8));
+        ctx.Db.AddAgentRequest(agent.Id, usedShift.Id, AgentRequestType.Leave, AgentRequestStatus.Approved, usedShift.StartUtc, usedShift.EndUtc);
+        ctx.Db.AddAgentRequest(agent.Id, pendingShift.Id, AgentRequestType.Leave, AgentRequestStatus.Pending, pendingShift.StartUtc, pendingShift.EndUtc);
+
+        var rows = await Service(ctx, StubCurrentUser.Supervisor(supervisor.UserId, supervisor.Id))
+            .ListAsync(new AgentRequestListFilter { Status = AgentRequestStatus.Pending }, CancellationToken.None);
+
+        var pending = Assert.Single(rows);
+        Assert.Equal(1, pending.RemainingLeaveDays);
+        Assert.Equal("Pending", pending.Status);
+    }
 }

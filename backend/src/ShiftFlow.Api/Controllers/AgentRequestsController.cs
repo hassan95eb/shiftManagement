@@ -21,6 +21,15 @@ public sealed class AgentRequestsController : ControllerBase
         _requests = requests;
     }
 
+    [HttpGet]
+    [Authorize]
+    [ProducesResponseType(typeof(IReadOnlyList<AgentRequestResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiError), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<IReadOnlyList<AgentRequestResponse>>> List(
+        [FromQuery] AgentRequestListFilter filter,
+        CancellationToken cancellationToken) =>
+        Ok(await _requests.ListAsync(filter, cancellationToken));
+
     [HttpPost]
     [Authorize(Roles = RoleNames.CallAgent)]
     [ProducesResponseType(typeof(AgentRequestResponse), StatusCodes.Status201Created)]

@@ -309,6 +309,8 @@ One request table serving both leave and downtime, with a Jalali leave year.
   so tests can pin it.
 - `POST /api/agent-requests` (Call Agent), `POST /api/agent-requests/{id}/approval`
   and `/rejection` (Supervisor).
+- `GET /api/agent-requests` lists requests scoped to the Call Agent, Supervisor,
+  or read-only Manager, with an optional `status` filter.
 - The request payload returned to the Supervisor includes the agent's remaining
   leave balance.
 - Add the filtered unique index below, guarding against two `Leave` requests

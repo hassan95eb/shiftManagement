@@ -196,6 +196,10 @@ except `login` requires `Authorization: Bearer <token>`; the token's role must m
 | `GET /api/applications` | Supervisor or CallAgent | application history, scoped to the caller, filterable by shift / status |
 | `POST /api/applications/{applicationId}/approval` | Supervisor | approve — closes the shift, rejects the siblings, all in one transaction |
 | `POST /api/applications/{applicationId}/rejection` | Supervisor | reject this one application; the shift stays Open |
+| `GET /api/agent-requests` | CallAgent, Supervisor, or Manager | scoped request history; optional `status` filter; pending first |
+| `POST /api/agent-requests` | CallAgent | request whole-shift leave or bounded downtime |
+| `POST /api/agent-requests/{id}/approval` | Supervisor | approve a request on one of your projects |
+| `POST /api/agent-requests/{id}/rejection` | Supervisor | reject a request on one of your projects |
 | `GET /api/shifts/{shiftId}/recommendations` | Supervisor | the applicant ranking the Python script wrote |
 
 ### Error shape
