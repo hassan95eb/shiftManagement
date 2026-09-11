@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Abstractions;
+using ShiftFlow.Application.Features.Attendance;
 using ShiftFlow.Infrastructure.Identity;
 using ShiftFlow.Infrastructure.Persistence;
 
@@ -28,6 +29,14 @@ public static class DependencyInjection
         services.AddScoped<IAppDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
         services.AddSingleton<IClock, SystemClock>();
+
+        services.AddOptions<AttendanceOptions>()
+            .Bind(configuration.GetSection(AttendanceOptions.SectionName))
+            .Validate(o => o.StalenessSeconds > 0,
+                "Attendance:StalenessSeconds must be greater than zero.")
+            .Validate(o => o.HeartbeatSeconds > 0,
+                "Attendance:HeartbeatSeconds must be greater than zero.")
+            .ValidateOnStart();
 
         services.AddOptions<JwtOptions>()
             .Bind(configuration.GetSection(JwtOptions.SectionName))

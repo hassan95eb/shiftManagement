@@ -33,6 +33,8 @@ public interface IAppDbContext
 
     DbSet<Recommendation> Recommendations { get; }
 
+    DbSet<AttendanceSession> AttendanceSessions { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>

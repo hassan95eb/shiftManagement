@@ -40,4 +40,6 @@ public class Shift
     public ICollection<ShiftApplication> ShiftApplications { get; } = new List<ShiftApplication>();
 
     public ICollection<Recommendation> Recommendations { get; } = new List<Recommendation>();
+
+    public ICollection<AttendanceSession> AttendanceSessions { get; } = new List<AttendanceSession>();
 }

@@ -1,0 +1,182 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using ShiftFlow.Application.Abstractions;
+using ShiftFlow.Application.Features.Attendance.Dtos;
+using ShiftFlow.Domain.Entities;
+using ShiftFlow.Domain.Enums;
+
+namespace ShiftFlow.Application.Features.Attendance;
+
+public sealed class AttendanceService : IAttendanceRecorder
+{
+    private readonly IAppDbContext _db;
+    private readonly ICurrentUser _currentUser;
+    private readonly IAccessScope _accessScope;
+    private readonly IClock _clock;
+    private readonly AttendanceOptions _options;
+
+    public AttendanceService(
+        IAppDbContext db,
+        ICurrentUser currentUser,
+        IAccessScope accessScope,
+        IClock clock,
+        IOptions<AttendanceOptions> options)
+    {
+        _db = db;
+        _currentUser = currentUser;
+        _accessScope = accessScope;
+        _clock = clock;
+        _options = options.Value;
+    }
+
+    /// <summary>Starts or refreshes the current shift's session after a successful login.</summary>
+    public async Task OpenForLoginAsync(int callAgentId, CancellationToken cancellationToken)
+    {
+        var now = _clock.UtcNow;
+        var shift = await FindCurrentCommittedShiftAsync(callAgentId, now, cancellationToken);
+        if (shift is null)
+        {
+            return;
+        }
+
+        await OpenOrRefreshSessionAsync(callAgentId, shift.Id, now, cancellationToken);
+    }
+
+    public async Task HeartbeatAsync(CancellationToken cancellationToken)
+    {
+        var callAgentId = _currentUser.RequireCallAgentId();
+        var now = _clock.UtcNow;
+        var shift = await FindCurrentCommittedShiftAsync(callAgentId, now, cancellationToken);
+        if (shift is null)
+        {
+            return;
+        }
+
+        await OpenOrRefreshSessionAsync(callAgentId, shift.Id, now, cancellationToken);
+    }
+
+    private async Task<Shift?> FindCurrentCommittedShiftAsync(
+        int callAgentId,
+        DateTime now,
+        CancellationToken cancellationToken) =>
+        await _db.Shifts
+            .Where(s => s.StartUtc <= now && s.EndUtc > now)
+            // Released is deliberately excluded: V5 uses it when the assigned
+            // agent is excused by approved leave.
+            .Where(s => s.Status == ShiftStatus.Assigned || s.Status == ShiftStatus.Closed)
+            .Where(s => s.AssignedCallAgentId == callAgentId
+                        || s.ShiftApplications.Any(a =>
+                            a.CallAgentId == callAgentId && a.Status == ApplicationStatus.Approved))
+            .OrderBy(s => s.StartUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    private async Task OpenOrRefreshSessionAsync(
+        int callAgentId,
+        int shiftId,
+        DateTime now,
+        CancellationToken cancellationToken)
+    {
+        var session = await _db.AttendanceSessions
+            .Where(s => s.CallAgentId == callAgentId
+                        && s.ShiftId == shiftId
+                        && s.EndedAtUtc == null)
+            .OrderByDescending(s => s.StartedAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (session is null)
+        {
+            var newSession = new AttendanceSession
+            {
+                CallAgentId = callAgentId,
+                ShiftId = shiftId,
+                StartedAtUtc = now,
+                LastSeenUtc = now,
+            };
+            _db.AttendanceSessions.Add(newSession);
+
+            try
+            {
+                await _db.SaveChangesAsync(cancellationToken);
+                return;
+            }
+            catch (DbUpdateException)
+            {
+                _db.Entry(newSession).State = EntityState.Detached;
+
+                // A concurrent login or heartbeat may have won the filtered
+                // unique-index race after our first read. Re-read once and
+                // refresh that winner; unrelated insert failures still escape.
+                session = await _db.AttendanceSessions
+                    .Where(s => s.CallAgentId == callAgentId
+                                && s.ShiftId == shiftId
+                                && s.EndedAtUtc == null)
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (session is null)
+                {
+                    throw;
+                }
+            }
+        }
+
+        session.LastSeenUtc = now;
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task LogoutAsync(CancellationToken cancellationToken)
+    {
+        var callAgentId = _currentUser.RequireCallAgentId();
+        var sessions = await _db.AttendanceSessions
+            .Where(s => s.CallAgentId == callAgentId && s.EndedAtUtc == null)
+            .ToListAsync(cancellationToken);
+
+        if (sessions.Count == 0)
+        {
+            return;
+        }
+
+        var now = _clock.UtcNow;
+        foreach (var session in sessions)
+        {
+            session.EndedAtUtc = now;
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<ActiveAttendanceResponse> GetActiveAsync(CancellationToken cancellationToken)
+    {
+        var now = _clock.UtcNow;
+        var freshSince = now.AddSeconds(-_options.StalenessSeconds);
+
+        var query = _accessScope.RestrictToOwnSupervisor(
+            _db.AttendanceSessions
+                .AsNoTracking()
+                .Where(a => a.EndedAtUtc == null
+                            && a.LastSeenUtc >= freshSince
+                            && a.Shift.StartUtc <= now
+                            && a.Shift.EndUtc > now),
+            a => a.Shift.Project.SupervisorId);
+
+        var rows = await query
+            .OrderBy(a => a.CallAgent.FullName)
+            .ThenBy(a => a.CallAgentId)
+            .Select(a => new ActiveAgentResponse(
+                a.CallAgentId,
+                a.CallAgent.FullName,
+                a.ShiftId,
+                a.Shift.ProjectId,
+                a.Shift.Project.Name,
+                a.StartedAtUtc,
+                a.LastSeenUtc))
+            .ToListAsync(cancellationToken);
+
+        var agents = rows
+            .GroupBy(a => a.CallAgentId)
+            .Select(g => g.OrderByDescending(a => a.LastSeenUtc).First())
+            .OrderBy(a => a.FullName)
+            .ThenBy(a => a.CallAgentId)
+            .ToList();
+
+        return new ActiveAttendanceResponse(agents.Count, agents);
+    }
+}

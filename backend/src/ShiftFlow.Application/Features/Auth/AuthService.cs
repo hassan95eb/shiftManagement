@@ -15,12 +15,18 @@ public sealed class AuthService
     private readonly IAppDbContext _db;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IJwtTokenService _tokenService;
+    private readonly IAttendanceRecorder _attendance;
 
-    public AuthService(IAppDbContext db, IPasswordHasher passwordHasher, IJwtTokenService tokenService)
+    public AuthService(
+        IAppDbContext db,
+        IPasswordHasher passwordHasher,
+        IJwtTokenService tokenService,
+        IAttendanceRecorder attendance)
     {
         _db = db;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _attendance = attendance;
     }
 
     public async Task<LoginResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
@@ -41,6 +47,20 @@ public sealed class AuthService
         var callAgentId = user.CallAgent?.Id;
 
         var token = _tokenService.CreateAccessToken(user, supervisorId, callAgentId);
+
+        if (callAgentId is not null)
+        {
+            try
+            {
+                await _attendance.OpenForLoginAsync(callAgentId.Value, cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                // Presence is best-effort: a missed login record costs at most
+                // one heartbeat interval, while rejecting valid credentials
+                // here could cost the CallAgent the whole shift.
+            }
+        }
 
         return new LoginResponse(
             token.Token,

@@ -531,3 +531,22 @@ BEGIN
     ALTER TABLE [Shifts] ADD CONSTRAINT [FK_Shifts_CallAgents_AssignedCallAgentId] FOREIGN KEY ([AssignedCallAgentId]) REFERENCES [CallAgents] ([Id]);
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911230004_AddAttendanceSessions'
+)
+BEGIN
+    CREATE TABLE [AttendanceSessions] (
+        [Id] int NOT NULL IDENTITY,
+        [CallAgentId] int NOT NULL,
+        [ShiftId] int NOT NULL,
+        [StartedAtUtc] datetime2(0) NOT NULL,
+        [LastSeenUtc] datetime2(0) NOT NULL,
+        [EndedAtUtc] datetime2(0) NULL,
+        CONSTRAINT [PK_AttendanceSessions] PRIMARY KEY ([Id]),
+        CONSTRAINT [FK_AttendanceSessions_CallAgents_CallAgentId] FOREIGN KEY ([CallAgentId]) REFERENCES [CallAgents] ([Id]),
+        CONSTRAINT [FK_AttendanceSessions_Shifts_ShiftId] FOREIGN KEY ([ShiftId]) REFERENCES [Shifts] ([Id])
+    );
+END;
+GO

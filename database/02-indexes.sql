@@ -314,3 +314,40 @@ BEGIN
     VALUES (N'20260911203653_AddShiftAssignment', N'10.0.11');
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911230004_AddAttendanceSessions'
+)
+BEGIN
+    CREATE INDEX [IX_AttendanceSessions_CallAgent_StartedAtUtc] ON [AttendanceSessions] ([CallAgentId], [StartedAtUtc]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911230004_AddAttendanceSessions'
+)
+BEGIN
+    CREATE INDEX [IX_AttendanceSessions_ShiftId] ON [AttendanceSessions] ([ShiftId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911230004_AddAttendanceSessions'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [UX_AttendanceSessions_OneOpenPerShift] ON [AttendanceSessions] ([CallAgentId], [ShiftId]) WHERE [EndedAtUtc] IS NULL');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911230004_AddAttendanceSessions'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260911230004_AddAttendanceSessions', N'10.0.11');
+END;
+GO

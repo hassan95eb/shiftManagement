@@ -255,12 +255,12 @@ Record presence, expose the live active-agent count, and derive absence.
 
 - `AttendanceSessions(Id, CallAgentId, ShiftId, StartedAtUtc, LastSeenUtc,
   EndedAtUtc NULL)`, FKs `NO ACTION`, index on `(CallAgentId, StartedAtUtc)` and
-  a filtered index on open sessions.
+  a filtered unique index on open sessions.
 - On successful login as a Call Agent: if the current time falls inside a shift
   the agent is committed to, open a session (or reuse the open one for that
   shift).
-- `POST /api/attendance/heartbeat` — updates `LastSeenUtc` on the open session.
-  Client interval is 60 seconds.
+- `POST /api/attendance/heartbeat` — opens or refreshes the session for the
+  agent's current committed shift. Client interval is 60 seconds.
 - `POST /api/attendance/logout` — sets `EndedAtUtc`.
 - `GET /api/attendance/active` (Supervisor scoped, Manager global) — agents whose
   open session has `LastSeenUtc` within the staleness threshold **and** whose

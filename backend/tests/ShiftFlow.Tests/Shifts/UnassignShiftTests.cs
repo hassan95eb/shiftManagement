@@ -73,4 +73,18 @@ public class UnassignShiftTests
         await Assert.ThrowsAsync<NotFoundException>(() =>
             ServiceFor(ctx, acme.UserId, acme.Id).UnassignAsync(globexShift.Id, CancellationToken.None));
     }
+
+    [Fact]
+    public async Task Unassigning_a_shift_with_attendance_history_is_refused()
+    {
+        using var ctx = new SqliteTestContext();
+        var acme = ctx.Db.AddSupervisor("Acme");
+        var project = ctx.Db.AddProject(acme.Id, "Support");
+        var jane = ctx.Db.AddCallAgent("Jane Doe");
+        var shift = ctx.Db.AddShift(project.Id, At(1, 8), At(1, 16), ShiftStatus.Assigned, jane.Id);
+        ctx.Db.AddAttendanceSession(jane.Id, shift.Id, At(1, 8), At(1, 9), At(1, 9));
+
+        await Assert.ThrowsAsync<BusinessRuleViolationException>(() =>
+            ServiceFor(ctx, acme.UserId, acme.Id).UnassignAsync(shift.Id, CancellationToken.None));
+    }
 }

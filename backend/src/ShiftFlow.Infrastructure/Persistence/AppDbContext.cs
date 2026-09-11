@@ -39,6 +39,8 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<Recommendation> Recommendations => Set<Recommendation>();
 
+    public DbSet<AttendanceSession> AttendanceSessions => Set<AttendanceSession>();
+
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         Database.BeginTransactionAsync(cancellationToken);
 

@@ -31,6 +31,8 @@ public class CallAgent
 
     public ICollection<Recommendation> Recommendations { get; } = new List<Recommendation>();
 
+    public ICollection<AttendanceSession> AttendanceSessions { get; } = new List<AttendanceSession>();
+
     // Shifts.AssignedCallAgentId. NO ACTION on delete (docs/01 §4).
     public ICollection<Shift> AssignedShifts { get; } = new List<Shift>();
 }

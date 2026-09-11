@@ -44,7 +44,8 @@ public class ModelMappingTests
         var model = Model();
 
         Assert.NotNull(model.FindEntityType(typeof(Shift)));
-        Assert.Equal(10, model.GetEntityTypes().Count(t => !t.IsOwned()));
+        Assert.NotNull(model.FindEntityType(typeof(AttendanceSession)));
+        Assert.Equal(11, model.GetEntityTypes().Count(t => !t.IsOwned()));
     }
 
     [Theory]
@@ -68,6 +69,8 @@ public class ModelMappingTests
     [InlineData(typeof(ShiftApplication), "DecidedByUserId")] // decision audit must survive
     [InlineData(typeof(Recommendation), "CallAgentId")]        // second path into Recommendations
     [InlineData(typeof(Shift), "AssignedCallAgentId")]         // direct assignment (V3)
+    [InlineData(typeof(AttendanceSession), "CallAgentId")]
+    [InlineData(typeof(AttendanceSession), "ShiftId")]
     public void Every_call_agent_side_fk_is_no_action(Type entity, string fkProperty)
     {
         Assert.Equal("NoAction", DeleteBehaviorOf(Model(), entity, fkProperty));
@@ -82,6 +85,18 @@ public class ModelMappingTests
 
         Assert.Equal(new[] { "AssignedCallAgentId" }, index.Properties.Select(p => p.Name));
         Assert.Equal("[AssignedCallAgentId] IS NOT NULL", index.GetFilter());
+    }
+
+    [Fact]
+    public void Open_attendance_index_is_filtered_and_unique_per_agent_shift()
+    {
+        var index = Model().FindEntityType(typeof(AttendanceSession))!
+            .GetIndexes()
+            .Single(i => i.GetDatabaseName() == "UX_AttendanceSessions_OneOpenPerShift");
+
+        Assert.True(index.IsUnique);
+        Assert.Equal(new[] { "CallAgentId", "ShiftId" }, index.Properties.Select(p => p.Name));
+        Assert.Equal("[EndedAtUtc] IS NULL", index.GetFilter());
     }
 
     [Fact]
