@@ -10,6 +10,7 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { ExpertDetailPage, ExpertsPage } from './pages/ExpertsPage';
 import { EmployerShiftsPage, OpenShiftsPage } from './pages/ShiftsPage';
 import { AvailabilityPage } from './pages/AvailabilityPage';
+import { EmployerApplicationsPage, MyApplicationsPage } from './pages/ApplicationsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,9 +28,11 @@ export function AppRoutes() {
     <Route path="/employer/experts" element={<ProtectedRoute role="Employer"><ExpertsPage /></ProtectedRoute>} />
     <Route path="/employer/experts/:id" element={<ProtectedRoute role="Employer"><ExpertDetailPage /></ProtectedRoute>} />
     <Route path="/employer/shifts" element={<ProtectedRoute role="Employer"><EmployerShiftsPage /></ProtectedRoute>} />
+    <Route path="/employer/applications" element={<ProtectedRoute role="Employer"><EmployerApplicationsPage /></ProtectedRoute>} />
     <Route path="/expert" element={<ProtectedRoute role="Expert"><ExpertHomePage /></ProtectedRoute>} />
     <Route path="/expert/shifts" element={<ProtectedRoute role="Expert"><OpenShiftsPage /></ProtectedRoute>} />
     <Route path="/expert/availability" element={<ProtectedRoute role="Expert"><AvailabilityPage /></ProtectedRoute>} />
+    <Route path="/expert/applications" element={<ProtectedRoute role="Expert"><MyApplicationsPage /></ProtectedRoute>} />
     <Route path="/session-expired" element={<SessionExpiredPage />} />
     <Route path="/server-error" element={<ServerErrorPage />} />
     <Route path="*" element={<NotFoundPage />} />

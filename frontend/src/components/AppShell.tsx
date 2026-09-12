@@ -31,11 +31,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         { label: 'پروژه‌ها', icon: 'folder' as const, href: '/employer/projects' },
         { label: 'کارشناسان', icon: 'users' as const, href: '/employer/experts' },
         { label: 'شیفت‌ها', icon: 'calendar' as const, href: '/employer/shifts' },
+        { label: 'درخواست‌ها', icon: 'shield' as const, href: '/employer/applications' },
       ]
     : [
         { label: 'داشبورد', icon: 'grid' as const, href: '/expert' },
         { label: 'شیفت‌های آزاد', icon: 'calendar' as const, href: '/expert/shifts' },
-        { label: 'درخواست‌های من', icon: 'folder' as const },
+        { label: 'درخواست‌های من', icon: 'folder' as const, href: '/expert/applications' },
         { label: 'اعلام دسترسی', icon: 'clock' as const, href: '/expert/availability' },
       ];
 

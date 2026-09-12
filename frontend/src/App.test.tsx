@@ -129,6 +129,59 @@ describe('V1 scheduling flow', () => {
   });
 });
 
+describe('V1 application flow', () => {
+  it('lets an expert apply to an open shift', async () => {
+    const user = userEvent.setup();
+    const shift = { id: 9, projectId: 3, startUtc: '2026-11-15T04:30:00Z', endUtc: '2026-11-15T12:30:00Z', status: 'Open', createdAtUtc: '2026-09-12T08:00:00Z', rowVersion: 'AAAAAA==' };
+    const application = { id: 21, shiftId: 9, expertId: 7, status: 'Pending', appliedAtUtc: '2026-09-12T08:00:00Z', decidedByUserId: null, decidedAtUtc: null, decisionNote: null };
+    let applied = false;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/shifts/open') return jsonResponse([shift]);
+      if (url === '/api/applications') return jsonResponse(applied ? [application] : []);
+      if (url === '/api/shifts/9/applications' && init?.method === 'POST') { applied = true; return jsonResponse(application, 201); }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    writeSession(expertSession);
+
+    renderApp('/expert/shifts');
+    await user.click(await screen.findByRole('button', { name: 'درخواست این شیفت' }));
+    await user.click(screen.getByRole('button', { name: 'ثبت درخواست' }));
+
+    expect(await screen.findByText('درخواست شیفت با موفقیت ثبت شد.')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/shifts/9/applications', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('lets an employer approve a pending application', async () => {
+    const user = userEvent.setup();
+    const project = { id: 3, employerId: 4, name: 'پشتیبانی', isActive: true, createdAtUtc: '2026-09-01T08:00:00Z' };
+    const expert = { id: 7, userId: 12, fullName: 'آدا رضایی', isActive: true, createdAtUtc: '2026-09-01T08:00:00Z' };
+    const shift = { id: 9, projectId: 3, startUtc: '2026-11-15T04:30:00Z', endUtc: '2026-11-15T12:30:00Z', status: 'Open', createdAtUtc: '2026-09-12T08:00:00Z', rowVersion: 'AAAAAA==' };
+    const pending = { id: 21, shiftId: 9, expertId: 7, status: 'Pending', appliedAtUtc: '2026-09-12T08:00:00Z', decidedByUserId: null, decidedAtUtc: null, decisionNote: null };
+    const approved = { ...pending, status: 'Approved', decidedByUserId: 1, decidedAtUtc: '2026-09-12T09:00:00Z' };
+    let decided = false;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.startsWith('/api/applications?')) return jsonResponse(decided ? [] : [pending]);
+      if (url === '/api/shifts') return jsonResponse([shift]);
+      if (url === '/api/projects') return jsonResponse([project]);
+      if (url === '/api/experts') return jsonResponse([expert]);
+      if (url === '/api/applications/21/approval' && init?.method === 'POST') { decided = true; return jsonResponse(approved); }
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    writeSession(employerSession);
+
+    renderApp('/employer/applications');
+    await user.click(await screen.findByRole('button', { name: 'تأیید' }));
+    await user.click(screen.getByRole('button', { name: 'تأیید نهایی' }));
+
+    expect(await screen.findByText('درخواست تأیید و شیفت بسته شد.')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/applications/21/approval', expect.objectContaining({ method: 'POST' }));
+  });
+});
+
 describe('employer management flow', () => {
   it('lists projects and creates a new project through the V1 API', async () => {
     const user = userEvent.setup();
