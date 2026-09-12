@@ -173,10 +173,7 @@ public sealed class AgentRequestService
         await _db.Shifts
             .AsNoTracking()
             .Where(s => s.Id == shiftId)
-            .Where(s =>
-                (s.Status == ShiftStatus.Assigned && s.AssignedCallAgentId == callAgentId)
-                || (s.Status == ShiftStatus.Closed && s.ShiftApplications.Any(a =>
-                    a.CallAgentId == callAgentId && a.Status == ApplicationStatus.Approved)))
+            .Where(ShiftCommitmentPolicy.ForCallAgent(callAgentId))
             .FirstOrDefaultAsync(cancellationToken)
         ?? throw new NotFoundException("Committed shift not found.");
 
@@ -201,13 +198,7 @@ public sealed class AgentRequestService
 
     private static void EnsureStillCommitted(AgentRequest request)
     {
-        var directlyAssigned = request.Shift.Status == ShiftStatus.Assigned
-                               && request.Shift.AssignedCallAgentId == request.CallAgentId;
-        var approvedApplication = request.Shift.Status == ShiftStatus.Closed
-                                  && request.Shift.ShiftApplications.Any(a =>
-                                      a.CallAgentId == request.CallAgentId
-                                      && a.Status == ApplicationStatus.Approved);
-        if (!directlyAssigned && !approvedApplication)
+        if (!ShiftCommitmentPolicy.IsCommittedTo(request.Shift, request.CallAgentId))
         {
             throw new BusinessRuleViolationException(
                 "The shift is no longer committed to this CallAgent.");
