@@ -37,7 +37,6 @@ venv/
 
 # Secrets — real values live only in .env (ignored); the map lives in .env.example
 .env
-.env.local
 *.pfx
 
 # OS / editor
