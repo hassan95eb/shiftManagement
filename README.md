@@ -4,13 +4,15 @@ A call-center shift-management panel. Hourly specialists (**Experts**) declare w
 they are available and apply for open shifts; an **Employer** manages projects, opens
 shifts, and approves or rejects applications. One expert is approved per shift, inside a
 single transaction that also rejects the other applicants. A standalone Python script
-(built in a later phase) ranks each shift's applicants and writes a score and a
-human-readable reason back to the database.
+ranks each shift's applicants and writes a score and a human-readable reason back to
+the database.
 
-This repository is the **backend**: an ASP.NET Core API, EF Core persistence against
-SQL Server, an xUnit suite, the Python recommender, and a `docker compose` stack that runs
-the database and API together. The React frontend and the `web` (nginx) service land in
-their own phases (see `CLAUDE.md` §10).
+This repository has both halves: an ASP.NET Core API with EF Core persistence against
+SQL Server, an xUnit suite, the Python recommender, a `docker compose` stack that runs
+the database and API together, and a React + TypeScript client under `frontend/` that
+covers the full V1 flow (login, projects, experts, shifts, availability, applications,
+and decisions). The `web` (nginx) service that would containerize the frontend is not
+built — the client is run with `npm run dev` instead (see [Frontend](#frontend) below).
 
 ## Architecture
 
@@ -39,8 +41,8 @@ Deliberate choices:
 | API | ASP.NET Core (.NET 10) + EF Core |
 | Database | SQL Server 2022, in Docker |
 | Auth | JWT access token (HS256), **no refresh token** |
-| Recommendation | standalone Python + `pymssql` *(later phase)* |
-| Frontend | React + TypeScript + Vite + TanStack Query *(later phase)* |
+| Recommendation | standalone Python + `pymssql` |
+| Frontend | React + TypeScript + Vite + TanStack Query + React Router |
 | Tests | xUnit + SQLite in-memory |
 | API docs | Swagger / Swashbuckle |
 | Infra | Docker Compose with a healthcheck on the DB |
@@ -72,6 +74,24 @@ Once it is up:
 
 To run the API from source instead, see [Manual Setup](#manual-setup) — that path is
 unchanged and does not need the `api` container.
+
+## Frontend
+
+The client isn't containerized (no `web` service in `docker-compose.yml`); run it
+alongside whichever API you started above (Docker or [Manual Setup](#manual-setup)):
+
+```bash
+cd frontend
+npm install
+npm run dev            # http://localhost:5173
+```
+
+Vite proxies `/api` to `http://localhost:5023` by default — set
+`VITE_API_PROXY_TARGET` if the API is on another port (e.g. `8080` for the Docker
+`api` service), or `VITE_API_BASE_URL` to call a different origin directly from the
+browser instead of going through the proxy. Sign in with a [demo account](#demo-accounts),
+e.g. `employer` / `Demo!Pass1` for the manager view or `ada` / `Demo!Pass1` for the
+expert view. See [frontend/README.md](frontend/README.md) for test/build commands.
 
 ## Manual Setup
 
