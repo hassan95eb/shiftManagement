@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
@@ -17,6 +17,11 @@ function renderApp(path = '/login') {
 const employerSession: AuthSession = {
   accessToken: 'jwt', expiresAtUtc: '2035-01-01T00:00:00Z', tokenType: 'Bearer', userId: 1,
   role: 'Employer', employerId: 4, expertId: null, username: 'employer',
+};
+
+const expertSession: AuthSession = {
+  accessToken: 'jwt', expiresAtUtc: '2035-01-01T00:00:00Z', tokenType: 'Bearer', userId: 2,
+  role: 'Expert', employerId: null, expertId: 7, username: 'ada',
 };
 
 function jsonResponse(body: unknown, status = 200) {
@@ -56,10 +61,6 @@ describe('authentication flow', () => {
   });
 
   it('renders forbidden for a valid user with the wrong role', async () => {
-    const expertSession: AuthSession = {
-      accessToken: 'jwt', expiresAtUtc: '2035-01-01T00:00:00Z', tokenType: 'Bearer', userId: 2,
-      role: 'Expert', employerId: null, expertId: 7, username: 'ada',
-    };
     writeSession(expertSession);
     renderApp('/employer');
     expect(await screen.findByRole('heading', { name: 'دسترسی به این بخش مجاز نیست' })).toBeInTheDocument();
@@ -71,6 +72,60 @@ describe('authentication flow', () => {
     await act(async () => window.dispatchEvent(new CustomEvent('shiftflow:unauthorized')));
     expect(await screen.findByRole('heading', { name: 'نشست شما پایان یافته است' })).toBeInTheDocument();
     expect(sessionStorage.getItem('shiftflow.session')).toBeNull();
+  });
+});
+
+describe('V1 scheduling flow', () => {
+  it('creates an employer shift and sends Tehran time as UTC', async () => {
+    const user = userEvent.setup();
+    const project = { id: 3, employerId: 4, name: 'پشتیبانی', isActive: true, createdAtUtc: '2026-09-01T08:00:00Z' };
+    const shift = { id: 9, projectId: 3, startUtc: '2026-11-15T04:30:00.000Z', endUtc: '2026-11-15T12:30:00.000Z', status: 'Open', createdAtUtc: '2026-09-12T08:00:00Z', rowVersion: 'AAAAAA==' };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/projects') return jsonResponse([project]);
+      if (url === '/api/shifts' && init?.method === 'POST') return jsonResponse(shift, 201);
+      if (url === '/api/shifts') return jsonResponse(fetchMock.mock.calls.some((call) => call[1]?.method === 'POST') ? [shift] : []);
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    writeSession(employerSession);
+
+    renderApp('/employer/shifts');
+    await screen.findByText('شیفتی پیدا نشد');
+    await user.click(screen.getByRole('button', { name: 'ایجاد شیفت' }));
+    await user.selectOptions(screen.getAllByLabelText('پروژه').at(-1)!, '3');
+    fireEvent.change(screen.getByLabelText('شروع شیفت'), { target: { value: '2026-11-15T08:00' } });
+    fireEvent.change(screen.getByLabelText('پایان شیفت'), { target: { value: '2026-11-15T16:00' } });
+    await user.click(screen.getAllByRole('button', { name: 'ایجاد شیفت' }).at(-1)!);
+
+    expect(await screen.findByText('شیفت جدید ایجاد شد.')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/shifts', expect.objectContaining({
+      method: 'POST',
+      body: JSON.stringify({ projectId: 3, startUtc: '2026-11-15T04:30:00.000Z', endUtc: '2026-11-15T12:30:00.000Z' }),
+    }));
+  });
+
+  it('creates an expert availability window through the V1 API', async () => {
+    const user = userEvent.setup();
+    const window = { id: 4, expertId: 7, startUtc: '2026-11-16T04:30:00.000Z', endUtc: '2026-11-16T08:30:00.000Z', createdAtUtc: '2026-09-12T08:00:00Z' };
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url === '/api/availability' && init?.method === 'POST') return jsonResponse(window, 201);
+      if (url === '/api/availability') return jsonResponse(fetchMock.mock.calls.some((call) => call[1]?.method === 'POST') ? [window] : []);
+      throw new Error(`Unexpected request: ${url}`);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    writeSession(expertSession);
+
+    renderApp('/expert/availability');
+    await screen.findByText('بازه‌ای ثبت نشده است');
+    await user.click(screen.getByRole('button', { name: 'افزودن بازه' }));
+    fireEvent.change(screen.getByLabelText('شروع دسترسی'), { target: { value: '2026-11-16T08:00' } });
+    fireEvent.change(screen.getByLabelText('پایان دسترسی'), { target: { value: '2026-11-16T12:00' } });
+    await user.click(screen.getByRole('button', { name: 'ثبت بازه' }));
+
+    expect(await screen.findByText('بازه دسترسی ثبت و با بازه‌های مجاور ادغام شد.')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith('/api/availability', expect.objectContaining({ method: 'POST' }));
   });
 });
 
