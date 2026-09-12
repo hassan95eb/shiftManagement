@@ -107,7 +107,7 @@ function YearSelect({ jy, onChange }: { jy?: number; onChange: (year: number | u
   const years = useJalaaliYearOptions();
   return <select aria-label="سال" value={jy ?? ''} onChange={(event) => onChange(event.target.value ? Number(event.target.value) : undefined)}>
     <option value="">سال</option>
-    {years.map((year) => <option key={year} value={year}>{year.toLocaleString('fa-IR')}</option>)}
+    {years.map((year) => <option key={year} value={year}>{year.toLocaleString('fa-IR', { useGrouping: false })}</option>)}
   </select>;
 }
 

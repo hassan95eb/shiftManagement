@@ -35,4 +35,11 @@ describe('formatDuration with the API\'s designator-less timestamps', () => {
   it('is unaffected by the missing Z (both ends shift by the same normalization)', () => {
     expect(formatDuration('2026-11-15T04:30:00', '2026-11-15T12:30:00')).toBe('۸ ساعت');
   });
+
+  it('never inserts a thousands separator, even for a four-digit hour count', () => {
+    // `(1234).toLocaleString('fa-IR')` groups by default ("۱٬۲۳۴") — wrong for a plain count.
+    // A multi-year availability window (a real mistake a user can make while picking dates)
+    // must still render as a plain number of hours.
+    expect(formatDuration('2020-01-01T00:00:00', '2020-06-25T10:00:00')).not.toContain('٬');
+  });
 });

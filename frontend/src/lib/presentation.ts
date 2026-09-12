@@ -31,7 +31,8 @@ export function formatDuration(start: string, end: string) {
   const minutes = Math.max(0, Math.round((new Date(asUtc(end)).getTime() - new Date(asUtc(start)).getTime()) / 60_000));
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
-  return rest ? `${hours.toLocaleString('fa-IR')} ساعت و ${rest.toLocaleString('fa-IR')} دقیقه` : `${hours.toLocaleString('fa-IR')} ساعت`;
+  const fmt = (value: number) => value.toLocaleString('fa-IR', { useGrouping: false });
+  return rest ? `${fmt(hours)} ساعت و ${fmt(rest)} دقیقه` : `${fmt(hours)} ساعت`;
 }
 
 export function toDateTimeLocalValue(value: string) {
