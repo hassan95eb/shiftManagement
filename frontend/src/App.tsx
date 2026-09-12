@@ -6,6 +6,8 @@ import { FeedbackProvider } from './components/Feedback';
 import { EmployerHomePage, ExpertHomePage } from './pages/HomePages';
 import { LoginPage } from './pages/LoginPage';
 import { NotFoundPage, ServerErrorPage, SessionExpiredPage } from './pages/StatusPages';
+import { ProjectsPage } from './pages/ProjectsPage';
+import { ExpertDetailPage, ExpertsPage } from './pages/ExpertsPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -19,6 +21,9 @@ export function AppRoutes() {
     <Route path="/" element={<Navigate to="/login" replace />} />
     <Route path="/login" element={<PublicOnlyRoute><LoginPage /></PublicOnlyRoute>} />
     <Route path="/employer" element={<ProtectedRoute role="Employer"><EmployerHomePage /></ProtectedRoute>} />
+    <Route path="/employer/projects" element={<ProtectedRoute role="Employer"><ProjectsPage /></ProtectedRoute>} />
+    <Route path="/employer/experts" element={<ProtectedRoute role="Employer"><ExpertsPage /></ProtectedRoute>} />
+    <Route path="/employer/experts/:id" element={<ProtectedRoute role="Employer"><ExpertDetailPage /></ProtectedRoute>} />
     <Route path="/expert" element={<ProtectedRoute role="Expert"><ExpertHomePage /></ProtectedRoute>} />
     <Route path="/session-expired" element={<SessionExpiredPage />} />
     <Route path="/server-error" element={<ServerErrorPage />} />
