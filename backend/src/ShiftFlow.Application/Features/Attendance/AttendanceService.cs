@@ -1,9 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Abstractions;
+using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.Attendance.Dtos;
 using ShiftFlow.Domain.Entities;
-using ShiftFlow.Domain.Enums;
 
 namespace ShiftFlow.Application.Features.Attendance;
 
@@ -61,12 +61,7 @@ public sealed class AttendanceService : IAttendanceRecorder
         CancellationToken cancellationToken) =>
         await _db.Shifts
             .Where(s => s.StartUtc <= now && s.EndUtc > now)
-            // Released is deliberately excluded: V5 uses it when the assigned
-            // agent is excused by approved leave.
-            .Where(s => s.Status == ShiftStatus.Assigned || s.Status == ShiftStatus.Closed)
-            .Where(s => s.AssignedCallAgentId == callAgentId
-                        || s.ShiftApplications.Any(a =>
-                            a.CallAgentId == callAgentId && a.Status == ApplicationStatus.Approved))
+            .Where(ShiftCommitmentPolicy.ForCallAgent(callAgentId))
             .OrderBy(s => s.StartUtc)
             .FirstOrDefaultAsync(cancellationToken);
 

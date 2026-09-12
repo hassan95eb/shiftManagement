@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Abstractions;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.CallAgents.Dtos;
@@ -21,17 +22,20 @@ public sealed class CallAgentService
     private readonly ICurrentUser _currentUser;
     private readonly IPasswordHasher _passwordHasher;
     private readonly IClock _clock;
+    private readonly LeaveOptions _leaveOptions;
 
     public CallAgentService(
         IAppDbContext db,
         ICurrentUser currentUser,
         IPasswordHasher passwordHasher,
-        IClock clock)
+        IClock clock,
+        IOptions<LeaveOptions> leaveOptions)
     {
         _db = db;
         _currentUser = currentUser;
         _passwordHasher = passwordHasher;
         _clock = clock;
+        _leaveOptions = leaveOptions.Value;
     }
 
     /// <summary>
@@ -61,6 +65,9 @@ public sealed class CallAgentService
         {
             FullName = fullName,
             IsActive = true,
+            // The EF default remains 26 as the database-level mirror. New
+            // application writes use the configured product default explicitly.
+            AnnualLeaveDays = _leaveOptions.AnnualDaysDefault,
             CreatedAtUtc = now,
             User = new User
             {

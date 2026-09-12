@@ -550,3 +550,41 @@ BEGIN
     );
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911231800_AddAgentRequests'
+)
+BEGIN
+    ALTER TABLE [CallAgents] ADD [AnnualLeaveDays] int NOT NULL DEFAULT 26;
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911231800_AddAgentRequests'
+)
+BEGIN
+    CREATE TABLE [AgentRequests] (
+        [Id] int NOT NULL IDENTITY,
+        [CallAgentId] int NOT NULL,
+        [ShiftId] int NOT NULL,
+        [RequestType] nvarchar(16) NOT NULL,
+        [RequestedAtUtc] datetime2(0) NOT NULL,
+        [StartUtc] datetime2(0) NOT NULL,
+        [EndUtc] datetime2(0) NOT NULL,
+        [Reason] nvarchar(256) NULL,
+        [Status] nvarchar(16) NOT NULL,
+        [DecidedByUserId] int NULL,
+        [DecidedAtUtc] datetime2(0) NULL,
+        [DecisionNote] nvarchar(256) NULL,
+        CONSTRAINT [PK_AgentRequests] PRIMARY KEY ([Id]),
+        CONSTRAINT [CK_AgentRequests_Range] CHECK ([EndUtc] > [StartUtc]),
+        CONSTRAINT [CK_AgentRequests_RequestType] CHECK ([RequestType] IN ('Leave', 'Downtime')),
+        CONSTRAINT [CK_AgentRequests_Status] CHECK ([Status] IN ('Pending', 'Approved', 'Rejected')),
+        CONSTRAINT [FK_AgentRequests_CallAgents_CallAgentId] FOREIGN KEY ([CallAgentId]) REFERENCES [CallAgents] ([Id]),
+        CONSTRAINT [FK_AgentRequests_Shifts_ShiftId] FOREIGN KEY ([ShiftId]) REFERENCES [Shifts] ([Id]),
+        CONSTRAINT [FK_AgentRequests_Users_DecidedByUserId] FOREIGN KEY ([DecidedByUserId]) REFERENCES [Users] ([Id])
+    );
+END;
+GO

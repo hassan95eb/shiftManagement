@@ -35,6 +35,8 @@ public interface IAppDbContext
 
     DbSet<AttendanceSession> AttendanceSessions { get; }
 
+    DbSet<AgentRequest> AgentRequests { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>

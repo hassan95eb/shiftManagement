@@ -30,4 +30,6 @@ public class User
     // Applications this user decided on, as the deciding Supervisor's account
     // (ShiftApplications.DecidedByUserId, NO ACTION on delete).
     public ICollection<ShiftApplication> DecidedApplications { get; } = new List<ShiftApplication>();
+
+    public ICollection<AgentRequest> DecidedAgentRequests { get; } = new List<AgentRequest>();
 }

@@ -351,3 +351,40 @@ BEGIN
     VALUES (N'20260911230004_AddAttendanceSessions', N'10.0.11');
 END;
 GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911231800_AddAgentRequests'
+)
+BEGIN
+    CREATE INDEX [IX_AgentRequests_CallAgent_Type_Status] ON [AgentRequests] ([CallAgentId], [RequestType], [Status]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911231800_AddAgentRequests'
+)
+BEGIN
+    CREATE INDEX [IX_AgentRequests_DecidedByUserId] ON [AgentRequests] ([DecidedByUserId]);
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911231800_AddAgentRequests'
+)
+BEGIN
+    EXEC(N'CREATE UNIQUE INDEX [UX_AgentRequests_OneApprovedLeave] ON [AgentRequests] ([ShiftId]) WHERE [Status] = ''Approved'' AND [RequestType] = ''Leave''');
+END;
+GO
+
+IF NOT EXISTS (
+    SELECT * FROM [__EFMigrationsHistory]
+    WHERE [MigrationId] = N'20260911231800_AddAgentRequests'
+)
+BEGIN
+    INSERT INTO [__EFMigrationsHistory] ([MigrationId], [ProductVersion])
+    VALUES (N'20260911231800_AddAgentRequests', N'10.0.11');
+END;
+GO

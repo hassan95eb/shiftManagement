@@ -95,6 +95,8 @@ missing, and the errors are not self-explanatory:
 | `Jwt__AccessTokenLifetimeMinutes` | no | defaults to `60` |
 | `ATTENDANCE__STALENESSSECONDS` | no | defaults to `120`; maximum age of an active session's heartbeat |
 | `ATTENDANCE__HEARTBEATSECONDS` | no | defaults to `60`; reserved for the future React client interval |
+| `RATING__DOWNTIMECAPHOURS` | no | defaults to `8`; approved downtime hours allowed per agent and Jalali calendar month |
+| `LEAVE__ANNUALDAYSDEFAULT` | no | defaults to `26`; annual allowance assigned when a CallAgent is created |
 | `AutoMigrate` | no | `true` runs migrate + seed outside `Development`; leave unset in production |
 | `ASPNETCORE_ENVIRONMENT` | no | `Development` (the default in `launchSettings.json`) enables Swagger and migrate + seed |
 
@@ -194,6 +196,10 @@ except `login` requires `Authorization: Bearer <token>`; the token's role must m
 | `GET /api/applications` | Supervisor or CallAgent | application history, scoped to the caller, filterable by shift / status |
 | `POST /api/applications/{applicationId}/approval` | Supervisor | approve — closes the shift, rejects the siblings, all in one transaction |
 | `POST /api/applications/{applicationId}/rejection` | Supervisor | reject this one application; the shift stays Open |
+| `GET /api/agent-requests` | CallAgent, Supervisor, or Manager | scoped request history; optional `status` filter; pending first |
+| `POST /api/agent-requests` | CallAgent | request whole-shift leave or bounded downtime |
+| `POST /api/agent-requests/{id}/approval` | Supervisor | approve a request on one of your projects |
+| `POST /api/agent-requests/{id}/rejection` | Supervisor | reject a request on one of your projects |
 | `GET /api/shifts/{shiftId}/recommendations` | Supervisor | the applicant ranking the Python script wrote |
 
 ### Error shape
@@ -464,6 +470,11 @@ Every ambiguous point in the brief and the decision taken. Kept as a running lis
   them — but a change to the *seed* would surface nowhere. Binding a `Scoring`
   section in the backend and deriving the seed's recommendation rows from it is
   the open item that would collapse this to one source of truth.
+- **Approved leave preserves the original assignment pointer until cover.**
+  Approval moves the shift to `Released` but leaves `AssignedCallAgentId`
+  pointing at the agent on leave. V6 overwrites that pointer when a cover fills
+  the shift, so V8 must derive committed and excused hours from the durable
+  `AgentRequests` row rather than the shift's current assignment.
 
 ## At Scale
 
@@ -477,6 +488,10 @@ What a production system would add, and why it is out of scope here:
 - **A `ScoringWeights` table + admin UI.** Weights live in configuration; making them runtime-editable is a feature the brief does not need.
 - **Soft delete / audit history tables.** Deletes are physical and FK-controlled; a compliance context would want tombstones and full audit trails.
 - **Application-level DB resilience.** Startup ordering relies on the Compose healthcheck (`condition: service_healthy`), not on connection retry in the app — enough for one local SQL Server container, but a managed database (failovers, transient throttling) would want `EnableRetryOnFailure` on the EF Core provider and retry-aware transactions.
+- **Leave-quota approval serialization.** Two concurrent approvals on different
+  shifts can both observe one remaining day. The filtered unique index protects
+  one shift from duplicate approved leave, not one agent's annual allowance;
+  production scale needs a serialized quota decision or an equivalent lock.
 
 ## AI Tools Used
 

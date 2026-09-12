@@ -41,6 +41,8 @@ public class AppDbContext : DbContext, IAppDbContext
 
     public DbSet<AttendanceSession> AttendanceSessions => Set<AttendanceSession>();
 
+    public DbSet<AgentRequest> AgentRequests => Set<AgentRequest>();
+
     public Task<IDbContextTransaction> BeginTransactionAsync(CancellationToken cancellationToken = default) =>
         Database.BeginTransactionAsync(cancellationToken);
 

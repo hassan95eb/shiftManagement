@@ -45,7 +45,8 @@ public class ModelMappingTests
 
         Assert.NotNull(model.FindEntityType(typeof(Shift)));
         Assert.NotNull(model.FindEntityType(typeof(AttendanceSession)));
-        Assert.Equal(11, model.GetEntityTypes().Count(t => !t.IsOwned()));
+        Assert.NotNull(model.FindEntityType(typeof(AgentRequest)));
+        Assert.Equal(12, model.GetEntityTypes().Count(t => !t.IsOwned()));
     }
 
     [Theory]
@@ -71,6 +72,9 @@ public class ModelMappingTests
     [InlineData(typeof(Shift), "AssignedCallAgentId")]         // direct assignment (V3)
     [InlineData(typeof(AttendanceSession), "CallAgentId")]
     [InlineData(typeof(AttendanceSession), "ShiftId")]
+    [InlineData(typeof(AgentRequest), "CallAgentId")]
+    [InlineData(typeof(AgentRequest), "ShiftId")]
+    [InlineData(typeof(AgentRequest), "DecidedByUserId")]
     public void Every_call_agent_side_fk_is_no_action(Type entity, string fkProperty)
     {
         Assert.Equal("NoAction", DeleteBehaviorOf(Model(), entity, fkProperty));
@@ -109,6 +113,18 @@ public class ModelMappingTests
         Assert.True(index.IsUnique);
         Assert.Equal(new[] { "ShiftId" }, index.Properties.Select(p => p.Name));
         Assert.Equal("[Status] = 'Approved'", index.GetFilter());
+    }
+
+    [Fact]
+    public void One_approved_leave_per_shift_is_a_filtered_unique_index()
+    {
+        var index = Model().FindEntityType(typeof(AgentRequest))!
+            .GetIndexes()
+            .Single(i => i.GetDatabaseName() == "UX_AgentRequests_OneApprovedLeave");
+
+        Assert.True(index.IsUnique);
+        Assert.Equal(new[] { "ShiftId" }, index.Properties.Select(p => p.Name));
+        Assert.Equal("[Status] = 'Approved' AND [RequestType] = 'Leave'", index.GetFilter());
     }
 
     [Fact]

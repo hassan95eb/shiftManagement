@@ -195,4 +195,29 @@ public static class TestData
         db.SaveChanges();
         return session;
     }
+
+    public static AgentRequest AddAgentRequest(
+        this AppDbContext db,
+        int callAgentId,
+        int shiftId,
+        AgentRequestType type,
+        AgentRequestStatus status,
+        DateTime startUtc,
+        DateTime endUtc,
+        DateTime? requestedAtUtc = null)
+    {
+        var request = new AgentRequest
+        {
+            CallAgentId = callAgentId,
+            ShiftId = shiftId,
+            RequestType = type,
+            Status = status,
+            RequestedAtUtc = requestedAtUtc ?? startUtc,
+            StartUtc = startUtc,
+            EndUtc = endUtc,
+        };
+        db.AgentRequests.Add(request);
+        db.SaveChanges();
+        return request;
+    }
 }

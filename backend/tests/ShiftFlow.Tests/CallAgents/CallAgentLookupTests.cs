@@ -1,6 +1,7 @@
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using ShiftFlow.Application.Common;
 using ShiftFlow.Application.Features.CallAgents;
 using ShiftFlow.Tests.Support;
@@ -15,7 +16,7 @@ namespace ShiftFlow.Tests.CallAgents;
 public class CallAgentLookupTests
 {
     private static CallAgentService ServiceFor(SqliteTestContext ctx, int userId, int supervisorId) =>
-        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new FakePasswordHasher(), new TestClock());
+        new(ctx.Db, StubCurrentUser.Supervisor(userId, supervisorId), new FakePasswordHasher(), new TestClock(), Options.Create(new LeaveOptions()));
 
     [Fact]
     public async Task List_returns_every_call_agent()
