@@ -28,8 +28,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   const items = isEmployer
     ? [
         { label: 'داشبورد', icon: 'grid' as const, href: '/employer' },
-        { label: 'پروژه‌ها', icon: 'folder' as const, href: '/employer/projects' },
-        { label: 'کارشناسان', icon: 'users' as const, href: '/employer/experts' },
+        { label: 'پروژه‌ها', icon: 'folder' as const },
+        { label: 'کارشناسان', icon: 'users' as const },
         { label: 'شیفت‌ها', icon: 'calendar' as const },
       ]
     : [
@@ -54,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="workspace"><Icon name={isEmployer ? 'folder' : 'users'} /><span><small>فضای کاری</small><strong>{roleLabels[session.role]}</strong></span></div>
         <nav aria-label="ناوبری اصلی">
           {items.map((item) => item.href ? (
-            <NavLink key={item.label} to={item.href} end={item.href === '/employer' || item.href === '/expert'} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={() => setMenuOpen(false)}>
+            <NavLink key={item.label} to={item.href} end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} onClick={() => setMenuOpen(false)}>
               <Icon name={item.icon} /><span>{item.label}</span>
             </NavLink>
           ) : (
