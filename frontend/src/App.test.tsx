@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
@@ -26,6 +26,26 @@ const expertSession: AuthSession = {
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
+}
+
+// The V1 shift/availability forms use a Jalali (Persian-calendar) date-time picker made of
+// five <select>s (day, month, year, hour, minute) instead of a native datetime-local input.
+// `index` picks the Nth field group *inside the given container* (0 = start, 1 = end), matching
+// source order. The container should be the open <dialog> — pages also have their own "روز" /
+// "ماه" / ... selects in unrelated filter toolbars, so scoping avoids matching those instead.
+async function fillPersianDateTime(
+  user: ReturnType<typeof userEvent.setup>,
+  container: HTMLElement,
+  index: number,
+  { jy, jm, jd, hh, mi }: { jy: number; jm: number; jd: number; hh: number; mi: number },
+) {
+  const scoped = within(container);
+  // Month first: picking a month resets the day selection to keep it valid for that month.
+  await user.selectOptions(scoped.getAllByLabelText('ماه')[index], String(jm));
+  await user.selectOptions(scoped.getAllByLabelText('روز')[index], String(jd));
+  await user.selectOptions(scoped.getAllByLabelText('سال')[index], String(jy));
+  await user.selectOptions(scoped.getAllByLabelText('ساعت')[index], String(hh));
+  await user.selectOptions(scoped.getAllByLabelText('دقیقه')[index], String(mi));
 }
 
 describe('authentication flow', () => {
@@ -94,8 +114,10 @@ describe('V1 scheduling flow', () => {
     await screen.findByText('شیفتی پیدا نشد');
     await user.click(screen.getByRole('button', { name: 'ایجاد شیفت' }));
     await user.selectOptions(screen.getAllByLabelText('پروژه').at(-1)!, '3');
-    fireEvent.change(screen.getByLabelText('شروع شیفت'), { target: { value: '2026-11-15T08:00' } });
-    fireEvent.change(screen.getByLabelText('پایان شیفت'), { target: { value: '2026-11-15T16:00' } });
+    const shiftDialog = document.querySelector('dialog') as HTMLElement;
+    // 2026-11-15 Tehran time == Jalali 1405-08-24.
+    await fillPersianDateTime(user, shiftDialog, 0, { jy: 1405, jm: 8, jd: 24, hh: 8, mi: 0 });
+    await fillPersianDateTime(user, shiftDialog, 1, { jy: 1405, jm: 8, jd: 24, hh: 16, mi: 0 });
     await user.click(screen.getAllByRole('button', { name: 'ایجاد شیفت' }).at(-1)!);
 
     expect(await screen.findByText('شیفت جدید ایجاد شد.')).toBeInTheDocument();
@@ -120,8 +142,10 @@ describe('V1 scheduling flow', () => {
     renderApp('/expert/availability');
     await screen.findByText('بازه‌ای ثبت نشده است');
     await user.click(screen.getByRole('button', { name: 'افزودن بازه' }));
-    fireEvent.change(screen.getByLabelText('شروع دسترسی'), { target: { value: '2026-11-16T08:00' } });
-    fireEvent.change(screen.getByLabelText('پایان دسترسی'), { target: { value: '2026-11-16T12:00' } });
+    const availabilityDialog = document.querySelector('dialog') as HTMLElement;
+    // 2026-11-16 Tehran time == Jalali 1405-08-25.
+    await fillPersianDateTime(user, availabilityDialog, 0, { jy: 1405, jm: 8, jd: 25, hh: 8, mi: 0 });
+    await fillPersianDateTime(user, availabilityDialog, 1, { jy: 1405, jm: 8, jd: 25, hh: 12, mi: 0 });
     await user.click(screen.getByRole('button', { name: 'ثبت بازه' }));
 
     expect(await screen.findByText('بازه دسترسی ثبت و با بازه‌های مجاور ادغام شد.')).toBeInTheDocument();

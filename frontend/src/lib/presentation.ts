@@ -1,12 +1,22 @@
 import { ApiError } from './api';
 
+// The API's entity timestamps (StartUtc, EndUtc, CreatedAtUtc, ...) are real UTC instants, but
+// ASP.NET Core serializes a DateTime read back through EF Core without a trailing `Z` (its
+// `DateTimeKind` is lost on the round trip through SQL Server). `new Date(...)` on a
+// timezone-less ISO string is parsed as *local* time per the ECMAScript spec, not UTC — correct
+// only by accident when the viewer happens to be in UTC. Every real user here is in Tehran, so
+// this must be normalized before it reaches `Date`.
+export function asUtc(value: string) {
+  return /(?:[zZ]|[+-]\d\d:?\d\d)$/.test(value) ? value : `${value}Z`;
+}
+
 export function formatPersianDate(value: string) {
   return new Intl.DateTimeFormat('fa-IR-u-ca-persian', {
     timeZone: 'Asia/Tehran',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  }).format(new Date(value));
+  }).format(new Date(asUtc(value)));
 }
 
 export function formatPersianTime(value: string) {
@@ -14,18 +24,18 @@ export function formatPersianTime(value: string) {
     timeZone: 'Asia/Tehran',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(value));
+  }).format(new Date(asUtc(value)));
 }
 
 export function formatDuration(start: string, end: string) {
-  const minutes = Math.max(0, Math.round((new Date(end).getTime() - new Date(start).getTime()) / 60_000));
+  const minutes = Math.max(0, Math.round((new Date(asUtc(end)).getTime() - new Date(asUtc(start)).getTime()) / 60_000));
   const hours = Math.floor(minutes / 60);
   const rest = minutes % 60;
   return rest ? `${hours.toLocaleString('fa-IR')} ساعت و ${rest.toLocaleString('fa-IR')} دقیقه` : `${hours.toLocaleString('fa-IR')} ساعت`;
 }
 
 export function toDateTimeLocalValue(value: string) {
-  const date = new Date(value);
+  const date = new Date(asUtc(value));
   const parts = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Tehran', year: 'numeric', month: '2-digit', day: '2-digit',
     hour: '2-digit', minute: '2-digit', hourCycle: 'h23',

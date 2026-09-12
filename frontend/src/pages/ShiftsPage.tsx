@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '../components/AppShell';
 import { EmptyState, LoadingState, Modal, useFeedback } from '../components/Feedback';
 import { FieldError, InlineError, PageHeader } from '../components/Page';
+import { PersianDateField, PersianDateTimeField } from '../components/PersianDateTime';
 import { Icon } from '../components/icons';
 import { projectsApi } from '../lib/management-api';
 import { shiftsApi } from '../lib/scheduling-api';
@@ -36,8 +37,8 @@ function ShiftFormModal({ shift, projects, pending, error, onClose, onSave }: {
   }}>
     <div className="form-grid">
       <label className="form-field full"><span>پروژه</span><select value={projectId} disabled={Boolean(shift)} onChange={(event) => setProjectId(event.target.value)}><option value="">انتخاب پروژه فعال</option>{projects.filter((project) => project.isActive || project.id === shift?.projectId).map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select><FieldError message={submitted && !projectId ? 'انتخاب پروژه الزامی است.' : ''} /></label>
-      <label className="form-field"><span>شروع شیفت</span><input type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /><FieldError message={submitted && !start ? 'زمان شروع الزامی است.' : ''} /></label>
-      <label className="form-field"><span>پایان شیفت</span><input type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} /><FieldError message={submitted && !end ? 'زمان پایان الزامی است.' : ''} /></label>
+      <label className="form-field full"><span>شروع شیفت</span><PersianDateTimeField value={start} onChange={setStart} /><FieldError message={submitted && !start ? 'زمان شروع الزامی است.' : ''} /></label>
+      <label className="form-field full"><span>پایان شیفت</span><PersianDateTimeField value={end} onChange={setEnd} /><FieldError message={submitted && !end ? 'زمان پایان الزامی است.' : ''} /></label>
     </div>
     {invalidRange && <InlineError message="زمان پایان باید بعد از زمان شروع باشد." />}
     {error && <InlineError message={error} />}
@@ -71,7 +72,7 @@ export function EmployerShiftsPage() {
 
   return <AppShell>
     <PageHeader title="شیفت‌ها" description="ایجاد شیفت و مدیریت زمان‌بندی پروژه‌ها" action={<button className="primary-button" type="button" onClick={() => setFormShift(null)}><Icon name="calendar" />ایجاد شیفت</button>} />
-    <section className="toolbar filter-toolbar"><label className="form-field"><span>پروژه</span><select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}><option value="">همه پروژه‌ها</option>{projects.data?.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-field"><span>وضعیت</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ShiftStatus | '')}><option value="">همه وضعیت‌ها</option><option value="Open">باز</option><option value="Closed">بسته</option></select></label><label className="form-field"><span>از تاریخ</span><input type="date" value={fromDate} onChange={(event) => setFromDate(event.target.value)} /></label><label className="form-field"><span>تا تاریخ</span><input type="date" value={toDate} onChange={(event) => setToDate(event.target.value)} /></label><span>{filtered?.length.toLocaleString('fa-IR') ?? '۰'} شیفت</span></section>
+    <section className="toolbar filter-toolbar"><label className="form-field"><span>پروژه</span><select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)}><option value="">همه پروژه‌ها</option>{projects.data?.map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label className="form-field"><span>وضعیت</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as ShiftStatus | '')}><option value="">همه وضعیت‌ها</option><option value="Open">باز</option><option value="Closed">بسته</option></select></label><label className="form-field wide"><span>از تاریخ</span><PersianDateField value={fromDate} onChange={setFromDate} /></label><label className="form-field wide"><span>تا تاریخ</span><PersianDateField value={toDate} onChange={setToDate} /></label><span>{filtered?.length.toLocaleString('fa-IR') ?? '۰'} شیفت</span></section>
     {(projects.isPending || shifts.isPending) && <LoadingState label="در حال دریافت شیفت‌ها…" />}
     {(projects.isError || shifts.isError) && <InlineError message={getErrorMessage(projects.error ?? shifts.error)} onRetry={() => { void projects.refetch(); void shifts.refetch(); }} />}
     {shifts.data && filtered?.length === 0 && <EmptyState title="شیفتی پیدا نشد" message="فیلترها را تغییر دهید یا یک شیفت جدید ایجاد کنید." />}

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AppShell } from '../components/AppShell';
 import { EmptyState, LoadingState, Modal, useFeedback } from '../components/Feedback';
 import { FieldError, InlineError, PageHeader } from '../components/Page';
+import { PersianDateTimeField } from '../components/PersianDateTime';
 import { Icon } from '../components/icons';
 import { availabilityApi } from '../lib/scheduling-api';
 import { formatDuration, formatPersianDate, formatPersianTime, getErrorMessage, tehranLocalToUtc, toDateTimeLocalValue } from '../lib/presentation';
@@ -15,7 +16,7 @@ function AvailabilityForm({ window, pending, error, onClose, onSave }: { window:
   useEffect(() => { setStart(window ? toDateTimeLocalValue(window.startUtc) : ''); setEnd(window ? toDateTimeLocalValue(window.endUtc) : ''); setSubmitted(false); }, [window]);
   const invalidRange = Boolean(start && end && new Date(start) >= new Date(end));
   return <Modal open={window !== undefined} title={window ? 'ویرایش بازه دسترسی' : 'افزودن بازه دسترسی'} description="بازه‌های هم‌پوشان یا متصل، خودکار با هم ادغام می‌شوند." confirmLabel={window ? 'ذخیره تغییرات' : 'ثبت بازه'} pending={pending} onClose={onClose} onConfirm={() => { setSubmitted(true); if (start && end && !invalidRange) onSave(tehranLocalToUtc(start), tehranLocalToUtc(end)); }}>
-    <div className="form-grid"><label className="form-field"><span>شروع دسترسی</span><input type="datetime-local" value={start} onChange={(event) => setStart(event.target.value)} /><FieldError message={submitted && !start ? 'زمان شروع الزامی است.' : ''} /></label><label className="form-field"><span>پایان دسترسی</span><input type="datetime-local" value={end} onChange={(event) => setEnd(event.target.value)} /><FieldError message={submitted && !end ? 'زمان پایان الزامی است.' : ''} /></label></div>
+    <div className="form-grid"><label className="form-field full"><span>شروع دسترسی</span><PersianDateTimeField value={start} onChange={setStart} /><FieldError message={submitted && !start ? 'زمان شروع الزامی است.' : ''} /></label><label className="form-field full"><span>پایان دسترسی</span><PersianDateTimeField value={end} onChange={setEnd} /><FieldError message={submitted && !end ? 'زمان پایان الزامی است.' : ''} /></label></div>
     {invalidRange && <InlineError message="زمان پایان باید بعد از زمان شروع باشد." />}{error && <InlineError message={error} />}
   </Modal>;
 }

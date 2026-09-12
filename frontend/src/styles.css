@@ -199,7 +199,11 @@ td > small { margin-top: 4px; color: var(--muted); font-size: 10px; }
 .assignment-list small { margin-top: 4px; color: var(--muted); font-size: 10px; }
 .filter-toolbar { flex-wrap: wrap; justify-content: flex-start; }
 .filter-toolbar .form-field { width: min(190px, 100%); }
+.filter-toolbar .form-field.wide { width: min(300px, 100%); }
 .filter-toolbar > span { margin-right: auto; }
+.persian-date { display: flex; flex-wrap: wrap; gap: 6px; }
+.persian-date select { width: auto; flex: 1 1 64px; min-width: 60px; padding: 0 6px; }
+.persian-date select:nth-child(2) { flex: 1.7 1 92px; }
 .muted-copy { color: var(--muted); font-size: 11px; }
 .shift-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
 .shift-card { display: grid; gap: 17px; border: 1px solid var(--border); border-radius: 18px; padding: 20px; background: #fff; box-shadow: var(--shadow); }
