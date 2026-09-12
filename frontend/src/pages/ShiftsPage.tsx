@@ -6,6 +6,7 @@ import { FieldError, InlineError, PageHeader } from '../components/Page';
 import { Icon } from '../components/icons';
 import { projectsApi } from '../lib/management-api';
 import { shiftsApi } from '../lib/scheduling-api';
+import { applicationsApi } from '../lib/applications-api';
 import { formatDuration, formatPersianDate, formatPersianTime, getErrorMessage, tehranLocalToUtc, toDateTimeLocalValue } from '../lib/presentation';
 import type { Shift, ShiftStatus } from '../types/scheduling';
 
@@ -80,12 +81,26 @@ export function EmployerShiftsPage() {
 }
 
 export function OpenShiftsPage() {
+  const queryClient = useQueryClient();
+  const { showToast } = useFeedback();
+  const [applyShift, setApplyShift] = useState<Shift | null>(null);
   const shifts = useQuery({ queryKey: ['open-shifts'], queryFn: () => shiftsApi.open() });
+  const applications = useQuery({ queryKey: ['my-applications'], queryFn: () => applicationsApi.list() });
+  const appliedShiftIds = new Set(applications.data?.map((application) => application.shiftId));
+  const apply = useMutation({
+    mutationFn: applicationsApi.apply,
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['my-applications'] });
+      setApplyShift(null);
+      showToast('درخواست شیفت با موفقیت ثبت شد.');
+    },
+  });
   return <AppShell>
     <PageHeader title="شیفت‌های آزاد" description="شیفت‌های باز پروژه‌هایی که در آن‌ها عضو هستید" />
-    {shifts.isPending && <LoadingState label="در حال دریافت شیفت‌های آزاد…" />}
-    {shifts.isError && <InlineError message={getErrorMessage(shifts.error)} onRetry={() => void shifts.refetch()} />}
+    {(shifts.isPending || applications.isPending) && <LoadingState label="در حال دریافت شیفت‌های آزاد…" />}
+    {(shifts.isError || applications.isError) && <InlineError message={getErrorMessage(shifts.error ?? applications.error)} onRetry={() => { void shifts.refetch(); void applications.refetch(); }} />}
     {shifts.data?.length === 0 && <EmptyState title="شیفت آزادی وجود ندارد" message="در حال حاضر شیفت بازی در پروژه‌های شما ثبت نشده است." />}
-    {Boolean(shifts.data?.length) && <section className="shift-grid">{shifts.data?.map((shift) => <article className="shift-card" key={shift.id}><header><span className="status-chip active">باز</span><small>پروژه {shift.projectId.toLocaleString('fa-IR')}</small></header><h2>{formatPersianDate(shift.startUtc)}</h2><div className="shift-card__time"><Icon name="clock" /><strong dir="ltr">{formatPersianTime(shift.startUtc)} – {formatPersianTime(shift.endUtc)}</strong></div><footer><span>{formatDuration(shift.startUtc, shift.endUtc)}</span><small>ثبت درخواست در تسک بعدی فعال می‌شود</small></footer></article>)}</section>}
+    {Boolean(shifts.data?.length) && <section className="shift-grid">{shifts.data?.map((shift) => { const alreadyApplied = appliedShiftIds.has(shift.id); return <article className="shift-card" key={shift.id}><header><span className="status-chip active">باز</span><small>پروژه {shift.projectId.toLocaleString('fa-IR')}</small></header><h2>{formatPersianDate(shift.startUtc)}</h2><div className="shift-card__time"><Icon name="clock" /><strong dir="ltr">{formatPersianTime(shift.startUtc)} – {formatPersianTime(shift.endUtc)}</strong></div><footer><span>{formatDuration(shift.startUtc, shift.endUtc)}</span><button className={alreadyApplied ? 'secondary-button compact' : 'primary-button compact'} type="button" disabled={alreadyApplied} onClick={() => setApplyShift(shift)}>{alreadyApplied ? 'درخواست ثبت شده' : 'درخواست این شیفت'}</button></footer></article>; })}</section>}
+    <Modal open={Boolean(applyShift)} title="ثبت درخواست شیفت" description="درخواست پس از ثبت برای تصمیم‌گیری کارفرما ارسال می‌شود." confirmLabel="ثبت درخواست" pending={apply.isPending} onClose={() => { setApplyShift(null); apply.reset(); }} onConfirm={() => applyShift && apply.mutate(applyShift.id)}><p className="confirm-copy">برای شیفت <strong>{applyShift ? formatPersianDate(applyShift.startUtc) : ''}</strong> از ساعت <strong>{applyShift ? formatPersianTime(applyShift.startUtc) : ''}</strong> درخواست ثبت شود؟</p>{apply.isError && <InlineError message={getErrorMessage(apply.error)} />}</Modal>
   </AppShell>;
 }
