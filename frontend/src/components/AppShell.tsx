@@ -30,13 +30,13 @@ export function AppShell({ children }: { children: ReactNode }) {
         { label: 'داشبورد', icon: 'grid' as const, href: '/employer' },
         { label: 'پروژه‌ها', icon: 'folder' as const, href: '/employer/projects' },
         { label: 'کارشناسان', icon: 'users' as const, href: '/employer/experts' },
-        { label: 'شیفت‌ها', icon: 'calendar' as const },
+        { label: 'شیفت‌ها', icon: 'calendar' as const, href: '/employer/shifts' },
       ]
     : [
         { label: 'داشبورد', icon: 'grid' as const, href: '/expert' },
-        { label: 'شیفت‌های آزاد', icon: 'calendar' as const },
+        { label: 'شیفت‌های آزاد', icon: 'calendar' as const, href: '/expert/shifts' },
         { label: 'درخواست‌های من', icon: 'folder' as const },
-        { label: 'اعلام دسترسی', icon: 'clock' as const },
+        { label: 'اعلام دسترسی', icon: 'clock' as const, href: '/expert/availability' },
       ];
 
   return (
