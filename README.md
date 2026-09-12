@@ -470,6 +470,11 @@ Every ambiguous point in the brief and the decision taken. Kept as a running lis
   them — but a change to the *seed* would surface nowhere. Binding a `Scoring`
   section in the backend and deriving the seed's recommendation rows from it is
   the open item that would collapse this to one source of truth.
+- **Approved leave preserves the original assignment pointer until cover.**
+  Approval moves the shift to `Released` but leaves `AssignedCallAgentId`
+  pointing at the agent on leave. V6 overwrites that pointer when a cover fills
+  the shift, so V8 must derive committed and excused hours from the durable
+  `AgentRequests` row rather than the shift's current assignment.
 
 ## At Scale
 
@@ -483,6 +488,10 @@ What a production system would add, and why it is out of scope here:
 - **A `ScoringWeights` table + admin UI.** Weights live in configuration; making them runtime-editable is a feature the brief does not need.
 - **Soft delete / audit history tables.** Deletes are physical and FK-controlled; a compliance context would want tombstones and full audit trails.
 - **Application-level DB resilience.** Startup ordering relies on the Compose healthcheck (`condition: service_healthy`), not on connection retry in the app — enough for one local SQL Server container, but a managed database (failovers, transient throttling) would want `EnableRetryOnFailure` on the EF Core provider and retry-aware transactions.
+- **Leave-quota approval serialization.** Two concurrent approvals on different
+  shifts can both observe one remaining day. The filtered unique index protects
+  one shift from duplicate approved leave, not one agent's annual allowance;
+  production scale needs a serialized quota decision or an equivalent lock.
 
 ## AI Tools Used
 
